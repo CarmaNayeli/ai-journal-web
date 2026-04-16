@@ -678,6 +678,179 @@ companionBtn.addEventListener('click', () => {
     browseCompanions();
 });
 
+// Crisis resources by country
+const crisisResources = {
+    'US': {
+        name: 'United States',
+        resources: [
+            { name: 'Suicide & Crisis Lifeline', contact: '988 (call or text)', url: 'https://988lifeline.org' },
+            { name: 'Crisis Text Line', contact: 'Text HOME to 741741', url: 'https://www.crisistextline.org' },
+            { name: 'Emergency', contact: '911', url: null }
+        ]
+    },
+    'CA': {
+        name: 'Canada',
+        resources: [
+            { name: 'Canada Suicide Prevention Service', contact: '1-833-456-4566 (call or text)', url: 'https://www.crisisservicescanada.ca' },
+            { name: 'Kids Help Phone', contact: '1-800-668-6868 or text 686868', url: 'https://kidshelpphone.ca' },
+            { name: 'Emergency', contact: '911', url: null }
+        ]
+    },
+    'GB': {
+        name: 'United Kingdom',
+        resources: [
+            { name: 'Samaritans', contact: '116 123', url: 'https://www.samaritans.org' },
+            { name: 'Crisis Text Line UK', contact: 'Text SHOUT to 85258', url: 'https://giveusashout.org' },
+            { name: 'Emergency', contact: '999 or 112', url: null }
+        ]
+    },
+    'AU': {
+        name: 'Australia',
+        resources: [
+            { name: 'Lifeline', contact: '13 11 14', url: 'https://www.lifeline.org.au' },
+            { name: 'Beyond Blue', contact: '1300 22 4636', url: 'https://www.beyondblue.org.au' },
+            { name: 'Emergency', contact: '000', url: null }
+        ]
+    },
+    'NZ': {
+        name: 'New Zealand',
+        resources: [
+            { name: 'Lifeline', contact: '0800 543 354', url: 'https://www.lifeline.org.nz' },
+            { name: '1737 Need to Talk?', contact: '1737 (call or text)', url: 'https://1737.org.nz' },
+            { name: 'Emergency', contact: '111', url: null }
+        ]
+    },
+    'IE': {
+        name: 'Ireland',
+        resources: [
+            { name: 'Samaritans', contact: '116 123', url: 'https://www.samaritans.org' },
+            { name: 'Pieta House', contact: '1800 247 247', url: 'https://www.pieta.ie' },
+            { name: 'Emergency', contact: '999 or 112', url: null }
+        ]
+    },
+    'DE': {
+        name: 'Germany',
+        resources: [
+            { name: 'Telefonseelsorge', contact: '0800 111 0 111 or 0800 111 0 222', url: 'https://www.telefonseelsorge.de' },
+            { name: 'Emergency', contact: '112', url: null }
+        ]
+    },
+    'FR': {
+        name: 'France',
+        resources: [
+            { name: 'SOS Amitié', contact: '09 72 39 40 50', url: 'https://www.sos-amitie.com' },
+            { name: 'Emergency', contact: '112', url: null }
+        ]
+    },
+    'ES': {
+        name: 'Spain',
+        resources: [
+            { name: 'Teléfono de la Esperanza', contact: '717 003 717', url: 'https://www.telefonodelaesperanza.org' },
+            { name: 'Emergency', contact: '112', url: null }
+        ]
+    },
+    'IT': {
+        name: 'Italy',
+        resources: [
+            { name: 'Telefono Amico', contact: '02 2327 2327', url: 'https://www.telefonoamico.it' },
+            { name: 'Emergency', contact: '112', url: null }
+        ]
+    },
+    'NL': {
+        name: 'Netherlands',
+        resources: [
+            { name: '113 Suicide Prevention', contact: '0800 0113', url: 'https://www.113.nl' },
+            { name: 'Emergency', contact: '112', url: null }
+        ]
+    },
+    'SE': {
+        name: 'Sweden',
+        resources: [
+            { name: 'Mind Självmordslinjen', contact: '90101', url: 'https://mind.se' },
+            { name: 'Emergency', contact: '112', url: null }
+        ]
+    },
+    'IN': {
+        name: 'India',
+        resources: [
+            { name: 'AASRA', contact: '91-9820466726', url: 'http://www.aasra.info' },
+            { name: 'Vandrevala Foundation', contact: '1860 2662 345', url: 'https://www.vandrevalafoundation.com' },
+            { name: 'Emergency', contact: '112', url: null }
+        ]
+    },
+    'JP': {
+        name: 'Japan',
+        resources: [
+            { name: 'TELL Lifeline', contact: '03-5774-0992', url: 'https://telljp.com' },
+            { name: 'Emergency', contact: '110 or 119', url: null }
+        ]
+    },
+    'BR': {
+        name: 'Brazil',
+        resources: [
+            { name: 'CVV', contact: '188', url: 'https://www.cvv.org.br' },
+            { name: 'Emergency', contact: '190 or 192', url: null }
+        ]
+    },
+    'MX': {
+        name: 'Mexico',
+        resources: [
+            { name: 'Línea de la Vida', contact: '800 911 2000', url: null },
+            { name: 'Emergency', contact: '911', url: null }
+        ]
+    },
+    'ZA': {
+        name: 'South Africa',
+        resources: [
+            { name: 'SADAG', contact: '0800 567 567', url: 'https://www.sadag.org' },
+            { name: 'Lifeline', contact: '0861 322 322', url: null },
+            { name: 'Emergency', contact: '10111', url: null }
+        ]
+    }
+};
+
+window.showLocalCrisisResources = async function() {
+    try {
+        // Try to detect country using a free geolocation API
+        const response = await fetch('https://ipapi.co/json/');
+        const data = await response.json();
+        const countryCode = data.country_code;
+        
+        const resources = crisisResources[countryCode] || crisisResources['US'];
+        
+        const resourcesHTML = resources.resources.map(r => {
+            const link = r.url ? `<a href="${r.url}" target="_blank" style="color: #d4a574;">${r.name}</a>` : r.name;
+            return `<li><strong>${link}:</strong> ${r.contact}</li>`;
+        }).join('');
+        
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px;';
+        modal.innerHTML = `
+            <div style="background: #2a2a2a; padding: 30px; border-radius: 15px; max-width: 600px; width: 100%; max-height: 80vh; overflow-y: auto;">
+                <h2 style="color: #fff; margin-top: 0;">🌍 Crisis Resources - ${resources.name}</h2>
+                <p style="color: #ccc;">If you're in crisis, please reach out:</p>
+                <ul style="color: #ccc; line-height: 2;">
+                    ${resourcesHTML}
+                </ul>
+                <p style="color: #999; font-size: 14px; margin-top: 20px;">
+                    💡 For more international resources, visit 
+                    <a href="https://findahelpline.com" target="_blank" style="color: #d4a574;">findahelpline.com</a>
+                </p>
+                <button onclick="this.parentElement.parentElement.remove()" 
+                        style="background: #4CAF50; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 20px; width: 100%;">
+                    Close
+                </button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+    } catch (error) {
+        console.error('Error detecting location:', error);
+        // Fallback to US resources
+        alert('Unable to detect your location. Showing US resources.\n\n988 - Suicide & Crisis Lifeline\nText HOME to 741741 - Crisis Text Line\n\nFor international resources, visit findahelpline.com');
+    }
+};
+
 // Initialize
 checkFirstLaunch();
 loadCompanions();
