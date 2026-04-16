@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Creature Journal</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 id="appTitle">AI Creature Journal</h1>
+            <div class="header-buttons">
+                <button id="companionBtn" class="header-btn" title="Choose Companion">🎭</button>
+                <button id="contextBtn" class="header-btn" title="View Context">📋</button>
+                <button id="todoBtn" class="header-btn" title="Todo List">✅</button>
+                <button id="journalBtn" class="header-btn" title="Journal">📓</button>
+                <button id="journalToggleBtn" class="header-btn" title="Toggle Journal Recording">⏺️</button>
+                <button id="settingsBtn" class="header-btn" title="Settings">⚙️</button>
+            </div>
+        </div>
+
+        <div id="welcomePanel" class="welcome-panel">
+            <div class="welcome-content">
+                <h1>🌟 Welcome to AI Creature Journal!</h1>
+                <p class="welcome-subtitle">Your personal journaling companion powered by AI</p>
+                
+                <div class="welcome-section">
+                    <h2>📝 What is this?</h2>
+                    <p>AI Creature Journal helps you reflect, process emotions, solve problems, and grow through journaling with 20 unique AI companions - each with their own personality and expertise.</p>
+                </div>
+
+                <div class="welcome-section">
+                    <h2>⚠️ Important</h2>
+                    <p><strong>This is a journaling tool, NOT therapy or medical advice.</strong></p>
+                    <p>If you're in crisis, please contact:</p>
+                    <ul>
+                        <li>🆘 US: Call or text <strong>988</strong> (Suicide Prevention Lifeline)</li>
+                        <li>🆘 US: Text <strong>HOME</strong> to <strong>741741</strong> (Crisis Text Line)</li>
+                        <li>🆘 Emergency: Call <strong>911</strong></li>
+                    </ul>
+                </div>
+
+                <div class="welcome-section">
+                    <h2>💰 API Costs</h2>
+                    <p><strong>Using this app costs real money!</strong></p>
+                    <p>You need a Claude API key from Anthropic (~$15-60/month depending on usage).</p>
+                </div>
+
+                <div class="welcome-actions">
+                    <label class="welcome-checkbox">
+                        <input type="checkbox" id="welcomeAcknowledge" onchange="document.getElementById('welcomeContinue').disabled = !this.checked;">
+                        <span>I understand this is a journaling tool, not therapy</span>
+                    </label>
+                    <button id="welcomeContinue" class="welcome-btn" disabled onclick="window.handleWelcomeContinue()">Continue to App</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="settingsPanel" class="settings-panel hidden">
+            <h3>API Configuration</h3>
+            <label for="apiKey">Claude API Key:</label>
+            <input type="password" id="apiKey" placeholder="sk-ant-...">
+            <button id="saveSettings">Save</button>
+            <button id="closeSettings">Cancel</button>
+        </div>
+
+        <div id="contextPanel" class="context-panel hidden">
+            <div class="panel-header">
+                <h3>Session Context</h3>
+                <button id="closeContext" class="close-btn">×</button>
+            </div>
+            <div id="contextContent" class="context-content"></div>
+        </div>
+
+        <div id="todoPanel" class="todo-panel hidden">
+            <div class="panel-header">
+                <h3>Todo List</h3>
+                <div class="panel-header-actions">
+                    <button id="toggleArchiveBtn" class="archive-toggle-btn" title="Toggle Archive">📦</button>
+                    <button id="closeTodo" class="close-btn">×</button>
+                </div>
+            </div>
+            <div class="todo-controls">
+                <input type="text" id="newTodoInput" placeholder="Add a new todo item..." class="todo-input">
+                <button id="addTodoBtn" class="add-todo-btn">Add</button>
+            </div>
+            <div id="todoList" class="todo-list"></div>
+        </div>
+
+        <div id="journalPanel" class="journal-panel hidden">
+            <div class="panel-header">
+                <h3>Journal</h3>
+                <button id="closeJournal" class="close-btn">×</button>
+            </div>
+            <div class="journal-search">
+                <input type="text" id="journalSearchInput" placeholder="Search journal entries..." class="journal-search-input">
+                <button id="journalSearchBtn" class="journal-search-btn">🔍</button>
+            </div>
+            <div id="journalContent" class="journal-content"></div>
+        </div>
+
+        <div id="chatContainer" class="chat-container">
+            <div id="messages" class="messages"></div>
+        </div>
+
+        <div class="prompt-suggestions hidden" id="promptSuggestions">
+            <button class="prompt-btn" data-prompt="What went well today?">✨ What went well today?</button>
+            <button class="prompt-btn" data-prompt="What are you looking forward to?">🌟 What are you looking forward to?</button>
+            <button class="prompt-btn" data-prompt="What's on your mind?">💭 What's on your mind?</button>
+            <button class="prompt-btn" data-prompt="What are you grateful for?">🙏 What are you grateful for?</button>
+            <button class="prompt-btn" data-prompt="What creative ideas are brewing?">🎨 What creative ideas are brewing?</button>
+            <button class="prompt-btn" data-prompt="How are your relationships feeling?">💝 How are your relationships feeling?</button>
+        </div>
+
+        <div class="input-container">
+            <button id="promptsBtn" class="prompts-btn hidden" title="Journal Prompts">💭</button>
+            <textarea id="messageInput" placeholder="Share what's in your heart..." rows="4"></textarea>
+            <button id="sendBtn">Send</button>
+        </div>
+    </div>
+
+    <script type="module" src="./main.js"></script>
+</body>
+</html>
