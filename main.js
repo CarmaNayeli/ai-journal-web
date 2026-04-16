@@ -276,17 +276,11 @@ async function sendMessage() {
     });
     
     try {
-        const response = await axios.post('https://api.anthropic.com/v1/messages', {
-            model: 'claude-3-5-sonnet-20241022',
-            max_tokens: 8096,
+        // Use proxy endpoint to avoid CORS issues
+        const response = await axios.post('/api/chat', {
+            apiKey: apiKey,
             system: buildSystemPrompt(),
             messages: conversationHistory
-        }, {
-            headers: {
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01',
-                'content-type': 'application/json'
-            }
         });
         
         const assistantMessage = response.data.content[0].text;
