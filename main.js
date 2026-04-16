@@ -810,11 +810,35 @@ const crisisResources = {
 };
 
 window.showLocalCrisisResources = async function() {
+    let countryCode = 'US';
+    let detectedCountry = '';
+    
     try {
-        // Try to detect country using a free geolocation API
-        const response = await fetch('https://ipapi.co/json/');
-        const data = await response.json();
-        const countryCode = data.country_code;
+        // Try multiple geolocation APIs for better accuracy
+        try {
+            const response = await fetch('https://ipapi.co/json/');
+            const data = await response.json();
+            if (data.country_code) {
+                countryCode = data.country_code;
+                detectedCountry = data.country_name || '';
+            }
+        } catch (e) {
+            // Fallback to timezone-based detection
+            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const tzToCountry = {
+                'America/New_York': 'US', 'America/Chicago': 'US', 'America/Denver': 'US', 'America/Los_Angeles': 'US',
+                'America/Toronto': 'CA', 'America/Vancouver': 'CA',
+                'Europe/London': 'GB', 'Europe/Dublin': 'IE',
+                'Australia/Sydney': 'AU', 'Australia/Melbourne': 'AU',
+                'Pacific/Auckland': 'NZ',
+                'Europe/Berlin': 'DE', 'Europe/Paris': 'FR', 'Europe/Madrid': 'ES',
+                'Europe/Rome': 'IT', 'Europe/Amsterdam': 'NL', 'Europe/Stockholm': 'SE',
+                'Asia/Kolkata': 'IN', 'Asia/Tokyo': 'JP',
+                'America/Sao_Paulo': 'BR', 'America/Mexico_City': 'MX',
+                'Africa/Johannesburg': 'ZA'
+            };
+            countryCode = tzToCountry[timezone] || 'US';
+        }
         
         const resources = crisisResources[countryCode] || crisisResources['US'];
         
@@ -823,15 +847,29 @@ window.showLocalCrisisResources = async function() {
             return `<li><strong>${link}:</strong> ${r.contact}</li>`;
         }).join('');
         
+        // Create country selector dropdown
+        const countryOptions = Object.entries(crisisResources)
+            .sort((a, b) => a[1].name.localeCompare(b[1].name))
+            .map(([code, data]) => `<option value="${code}" ${code === countryCode ? 'selected' : ''}>${data.name}</option>`)
+            .join('');
+        
         const modal = document.createElement('div');
         modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px;';
         modal.innerHTML = `
             <div style="background: #2a2a2a; padding: 30px; border-radius: 15px; max-width: 600px; width: 100%; max-height: 80vh; overflow-y: auto;">
-                <h2 style="color: #fff; margin-top: 0;">🌍 Crisis Resources - ${resources.name}</h2>
-                <p style="color: #ccc;">If you're in crisis, please reach out:</p>
-                <ul style="color: #ccc; line-height: 2;">
-                    ${resourcesHTML}
-                </ul>
+                <h2 style="color: #fff; margin-top: 0;">🌍 Crisis Resources</h2>
+                <div style="margin-bottom: 20px;">
+                    <label style="color: #ccc; display: block; margin-bottom: 8px;">Select your country:</label>
+                    <select id="countrySelect" style="width: 100%; padding: 10px; background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 8px; font-size: 16px;">
+                        ${countryOptions}
+                    </select>
+                </div>
+                <div id="resourcesContent">
+                    <p style="color: #ccc;">If you're in crisis, please reach out:</p>
+                    <ul style="color: #ccc; line-height: 2;">
+                        ${resourcesHTML}
+                    </ul>
+                </div>
                 <p style="color: #999; font-size: 14px; margin-top: 20px;">
                     💡 For more international resources, visit 
                     <a href="https://findahelpline.com" target="_blank" style="color: #d4a574;">findahelpline.com</a>
@@ -844,10 +882,26 @@ window.showLocalCrisisResources = async function() {
         `;
         document.body.appendChild(modal);
         
+        // Add change listener for country selector
+        const select = modal.querySelector('#countrySelect');
+        const contentDiv = modal.querySelector('#resourcesContent');
+        select.addEventListener('change', (e) => {
+            const selectedCountry = crisisResources[e.target.value];
+            const newResourcesHTML = selectedCountry.resources.map(r => {
+                const link = r.url ? `<a href="${r.url}" target="_blank" style="color: #d4a574;">${r.name}</a>` : r.name;
+                return `<li><strong>${link}:</strong> ${r.contact}</li>`;
+            }).join('');
+            contentDiv.innerHTML = `
+                <p style="color: #ccc;">If you're in crisis, please reach out:</p>
+                <ul style="color: #ccc; line-height: 2;">
+                    ${newResourcesHTML}
+                </ul>
+            `;
+        });
+        
     } catch (error) {
-        console.error('Error detecting location:', error);
-        // Fallback to US resources
-        alert('Unable to detect your location. Showing US resources.\n\n988 - Suicide & Crisis Lifeline\nText HOME to 741741 - Crisis Text Line\n\nFor international resources, visit findahelpline.com');
+        console.error('Error showing crisis resources:', error);
+        alert('Unable to load crisis resources. For international resources, visit findahelpline.com');
     }
 };
 
