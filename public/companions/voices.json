@@ -7,7 +7,7 @@
   "clover":    { "voiceId": "FGY2WhTYpPnrIDTdsKH5", "stability": 0.52, "style": 0.35, "speed": 0.95 },
   "compass":   { "voiceId": "IKne3meq5aSn9XLyUdCD", "stability": 0.80, "style": 0.08, "speed": 0.95 },
   "echo":      { "voiceId": "KL1qWgdoOBGVV22bLXB8", "stability": 0.75, "style": 0.08, "speed": 0.90 },
-  "grove":     { "voiceId": "pwSrQa8siR5UTZaDUf9o", "stability": 0.72, "style": 0.12, "speed": 0.80 },
+  "grove":     { "voiceId": "pwSrQa8siR5UTZaDUf9o", "stability": 0.72, "style": 0.20, "speed": 0.92 },
   "jest":      { "voiceId": "Sg4RKsgCF8LQDwodzA3k", "stability": 0.40, "style": 0.55, "speed": 1.10 },
   "keeper":    { "voiceId": "onwK4e9ZLuTAKqWW03F9", "stability": 0.75, "style": 0.12, "speed": 0.88 },
   "luna":      { "voiceId": "6mZWsYRiWYvh3s5eK1fm", "stability": 0.68, "style": 0.15, "speed": 0.82 },
