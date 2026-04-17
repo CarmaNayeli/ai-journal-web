@@ -1,10 +1,5 @@
-import { chromium } from 'playwright-core';
-import chromiumMin from '@sparticuz/chromium-min';
-
 export const config = {
-  runtime: 'nodejs',
-  maxDuration: 60,
-  memory: 3008,
+  runtime: 'edge',
 };
 
 export default async function handler(req) {
@@ -64,60 +59,26 @@ export default async function handler(req) {
     let text;
 
     if (useJs) {
-      // Use Playwright to render JavaScript
-      let browser = null;
+      // Use Jina Reader API for JS rendering (free tier)
       try {
-        console.log('Launching Playwright for URL:', url);
-        
-        // Get Chromium executable path
-        const executablePath = await chromiumMin.executablePath();
-        console.log('Chromium path:', executablePath);
-        
-        // Launch browser using playwright-core with chromium-min
-        browser = await chromium.launch({
-          executablePath,
-          headless: true,
-          args: chromiumMin.args,
-        });
-        console.log('Browser launched successfully');
-
-        const context = await browser.newContext({
-          userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-          extraHTTPHeaders: {
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          },
-        });
-
-        const page = await context.newPage();
-        
-        console.log('Navigating to URL...');
-        // Navigate and wait for network to be idle
-        await page.goto(url, { 
-          waitUntil: 'domcontentloaded',
-          timeout: 45000 
-        });
-        
-        console.log('Page loaded, waiting for dynamic content...');
-        // Wait a bit more for dynamic content
-        await page.waitForTimeout(2000);
-        
-        console.log('Getting page content...');
-        // Get the rendered HTML
-        text = await page.content();
-        console.log('Content retrieved, length:', text.length);
-        
-        await browser.close();
-      } catch (error) {
-        if (browser) {
-          try {
-            await browser.close();
-          } catch (e) {
-            console.error('Error closing browser:', e);
+        console.log('Using Jina Reader for JS rendering:', url);
+        const jinaUrl = `https://r.jina.ai/${url}`;
+        const response = await fetch(jinaUrl, {
+          headers: {
+            'Accept': 'text/plain',
+            'X-Return-Format': 'text'
           }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Jina Reader failed: ${response.status}`);
         }
-        console.error('Playwright error details:', error);
-        throw new Error(`Playwright error: ${error.message}`);
+        
+        text = await response.text();
+        console.log('Content retrieved via Jina, length:', text.length);
+      } catch (error) {
+        console.error('Jina Reader error:', error);
+        throw new Error(`JS rendering failed: ${error.message}`);
       }
     } else {
       // Simple fetch for static sites
