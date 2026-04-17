@@ -306,6 +306,34 @@ async function sendMessage() {
                     },
                     required: ['note']
                 }
+            },
+            {
+                name: 'search_web',
+                description: 'Search the web for information using DuckDuckGo. Use this when the user asks about current events, needs factual information, wants to look something up, or references something you don\'t have knowledge about. Returns search results with titles, snippets, and URLs.',
+                input_schema: {
+                    type: 'object',
+                    properties: {
+                        query: {
+                            type: 'string',
+                            description: 'The search query to look up on the web'
+                        }
+                    },
+                    required: ['query']
+                }
+            },
+            {
+                name: 'read_url',
+                description: 'Fetch and read the content from a URL. Useful for reading documentation, articles, or web pages that the user references.',
+                input_schema: {
+                    type: 'object',
+                    properties: {
+                        url: {
+                            type: 'string',
+                            description: 'The URL to fetch and read'
+                        }
+                    },
+                    required: ['url']
+                }
             }
         ];
         
@@ -331,6 +359,8 @@ async function sendMessage() {
         
         // Handle tool uses
         if (toolUses.length > 0) {
+            const toolResults = [];
+            
             for (const toolUse of toolUses) {
                 if (toolUse.name === 'save_note') {
                     const note = toolUse.input.note;
@@ -340,7 +370,122 @@ async function sendMessage() {
                     const updatedNotes = currentNotes ? `${currentNotes}\n${newNote}` : newNote;
                     storage.set('contextNotes', updatedNotes);
                     addMessage(`📝 Note saved to context: ${note}`, 'system');
+                    
+                    toolResults.push({
+                        type: 'tool_result',
+                        tool_use_id: toolUse.id,
+                        content: 'Note saved successfully.'
+                    });
+                    
+                } else if (toolUse.name === 'search_web') {
+                    const query = toolUse.input.query;
+                    addMessage(`🔍 Searching web for: ${query}...`, 'system');
+                    
+                    try {
+                        // Use DuckDuckGo API
+                        const searchResponse = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`);
+                        const searchData = await searchResponse.json();
+                        
+                        let results = '';
+                        if (searchData.AbstractText) {
+                            results += `Summary: ${searchData.AbstractText}\n\n`;
+                        }
+                        if (searchData.RelatedTopics && searchData.RelatedTopics.length > 0) {
+                            results += 'Related topics:\n';
+                            searchData.RelatedTopics.slice(0, 5).forEach((topic, i) => {
+                                if (topic.Text) {
+                                    results += `${i + 1}. ${topic.Text}\n`;
+                                    if (topic.FirstURL) results += `   ${topic.FirstURL}\n`;
+                                }
+                            });
+                        }
+                        
+                        if (!results) {
+                            results = 'No results found. Try a different search query.';
+                        }
+                        
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: toolUse.id,
+                            content: results
+                        });
+                    } catch (error) {
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: toolUse.id,
+                            content: `Error searching web: ${error.message}`
+                        });
+                    }
+                    
+                } else if (toolUse.name === 'read_url') {
+                    const url = toolUse.input.url;
+                    addMessage(`📄 Fetching content from: ${url}...`, 'system');
+                    
+                    try {
+                        // Use a CORS proxy for fetching URLs
+                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+                        const urlResponse = await fetch(proxyUrl);
+                        const urlData = await urlResponse.json();
+                        
+                        if (urlData.contents) {
+                            // Strip HTML tags for cleaner text
+                            const text = urlData.contents.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                            const preview = text.substring(0, 2000) + (text.length > 2000 ? '...' : '');
+                            
+                            toolResults.push({
+                                type: 'tool_result',
+                                tool_use_id: toolUse.id,
+                                content: preview
+                            });
+                        } else {
+                            toolResults.push({
+                                type: 'tool_result',
+                                tool_use_id: toolUse.id,
+                                content: 'Unable to fetch URL content.'
+                            });
+                        }
+                    } catch (error) {
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: toolUse.id,
+                            content: `Error fetching URL: ${error.message}`
+                        });
+                    }
                 }
+            }
+            
+            // If there were tool uses, send tool results back to continue the conversation
+            if (toolResults.length > 0) {
+                conversationHistory.push({
+                    role: 'user',
+                    content: toolResults
+                });
+                
+                // Make another API call with tool results
+                const followUpResponse = await axios.post('/api/chat', {
+                    apiKey: apiKey,
+                    system: buildSystemPrompt(),
+                    messages: conversationHistory,
+                    tools: tools
+                });
+                
+                const followUpContent = followUpResponse.data.content;
+                const followUpText = followUpContent.filter(b => b.type === 'text').map(b => b.text).join('\n');
+                
+                if (followUpText) {
+                    addMessage(followUpText, 'assistant');
+                }
+                
+                conversationHistory.push({
+                    role: 'assistant',
+                    content: followUpContent
+                });
+                
+                if (journalRecording && followUpText) {
+                    saveToJournal(message, followUpText);
+                }
+                
+                return; // Exit early since we handled the follow-up
             }
         }
         
