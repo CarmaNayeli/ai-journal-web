@@ -263,7 +263,18 @@ function buildSystemPrompt() {
         cache_control: { type: 'ephemeral' }
     });
     
-    // Block 2: Context notes (if any)
+    // Block 2: Tool usage guidelines
+    blocks.push({
+        type: 'text',
+        text: `\n\nTool Usage Guidelines:
+- Use the save_note tool regularly to remember important details about the user (their projects, goals, preferences, important dates, etc.)
+- Save notes when you learn something new about the user that would be helpful to remember in future conversations
+- Update your context notes as the conversation evolves to maintain accurate, up-to-date information
+- Use todos to help the user track tasks and action items
+- Use web search and URL reading when the user needs current information or references external content`
+    });
+    
+    // Block 3: Context notes (if any)
     const contextNotes = storage.get('contextNotes', '');
     if (contextNotes) {
         blocks.push({
@@ -888,6 +899,32 @@ messageInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendMessage();
+    }
+});
+
+// Handle paste events for images
+messageInput.addEventListener('paste', async (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    
+    for (const item of items) {
+        if (item.type.startsWith('image/')) {
+            e.preventDefault();
+            const file = item.getAsFile();
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const base64Data = event.target.result.split(',')[1];
+                    attachedImages.push({
+                        data: base64Data,
+                        mimeType: file.type,
+                        name: 'pasted-image.png'
+                    });
+                    renderAttachedImages();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
     }
 });
 
