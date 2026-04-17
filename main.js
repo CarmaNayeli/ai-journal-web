@@ -635,7 +635,9 @@ async function sendMessage() {
             const textBlocks = assistantContent.filter(b => b.type === 'text');
             if (textBlocks.length > 0) {
                 typingIndicator.remove();
-                addMessage(textBlocks.map(b => b.text).join('\n'), 'assistant');
+                const preToolText = textBlocks.map(b => b.text).join('\n');
+                addMessage(preToolText, 'assistant');
+                speakText(preToolText);
                 typingIndicator = addMessage('...', 'assistant');
                 typingIndicator.classList.add('typing-indicator');
             }
