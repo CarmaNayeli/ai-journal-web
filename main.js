@@ -1205,9 +1205,7 @@ if (SpeechRecognition) {
         micBtn.classList.remove('listening');
     };
 } else {
-    micBtn.title = 'Speech recognition not supported in this browser';
-    micBtn.style.opacity = '0.4';
-    micBtn.style.cursor = 'not-allowed';
+    micBtn.style.display = 'none';
 }
 
 micBtn.addEventListener('click', () => {
