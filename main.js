@@ -339,7 +339,7 @@ async function sendMessage() {
     });
     
     // Show typing indicator
-    const typingIndicator = addMessage('...', 'assistant');
+    let typingIndicator = addMessage('...', 'assistant');
     typingIndicator.classList.add('typing-indicator');
     
     try {
@@ -492,7 +492,8 @@ async function sendMessage() {
             if (textBlocks.length > 0) {
                 typingIndicator.remove();
                 addMessage(textBlocks.map(b => b.text).join('\n'), 'assistant');
-                typingIndicator = addTypingIndicator();
+                typingIndicator = addMessage('...', 'assistant');
+                typingIndicator.classList.add('typing-indicator');
             }
             
             // Process all tool uses
