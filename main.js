@@ -101,12 +101,12 @@ async function speakText(text) {
     }
 
     try {
-        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceConfig.voiceId}`, {
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceConfig.voiceId}/stream`, {
             method: 'POST',
             headers: { 'xi-api-key': elevenKey, 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 text: stripMarkdown(text),
-                model_id: 'eleven_multilingual_v2',
+                model_id: 'eleven_turbo_v2_5',
                 voice_settings: {
                     stability: voiceConfig.stability ?? 0.5,
                     similarity_boost: 0.75,
@@ -116,11 +116,31 @@ async function speakText(text) {
             })
         });
         if (!response.ok) return;
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        currentAudio = new Audio(url);
-        currentAudio.play();
-        currentAudio.onended = () => { URL.revokeObjectURL(url); currentAudio = null; };
+
+        const mediaSource = new MediaSource();
+        const audio = new Audio();
+        audio.src = URL.createObjectURL(mediaSource);
+        currentAudio = audio;
+
+        await new Promise(resolve => mediaSource.addEventListener('sourceopen', resolve, { once: true }));
+        const sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+        const reader = response.body.getReader();
+
+        audio.play();
+
+        const waitForBuffer = () => new Promise(resolve => {
+            if (!sourceBuffer.updating) { resolve(); return; }
+            sourceBuffer.addEventListener('updateend', resolve, { once: true });
+        });
+
+        while (true) {
+            const { done, value } = await reader.read();
+            await waitForBuffer();
+            if (done) { mediaSource.endOfStream(); break; }
+            sourceBuffer.appendBuffer(value);
+        }
+
+        audio.onended = () => { URL.revokeObjectURL(audio.src); currentAudio = null; };
     } catch (e) {
         console.error('ElevenLabs TTS error:', e);
     }
@@ -1191,10 +1211,12 @@ let recognition = null;
 let isListening = false;  // manual mic button active
 let wakeWordActive = false; // background wake word polling
 let isComposing = false;  // user said "hey [name]", now dictating
+let composingStartIndex = 0; // result index when composing began
 
-function startComposing() {
+function startComposing(resultIndex = 0) {
     isComposing = true;
     isListening = true;
+    composingStartIndex = resultIndex;
     micBtn.textContent = '🔴';
     micBtn.classList.add('listening');
     messageInput.value = '';
@@ -1223,56 +1245,55 @@ function stopWakeWordListener() {
 
 if (SpeechRecognition) {
     recognition = new SpeechRecognition();
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
 
     recognition.onresult = (e) => {
-        const results = Array.from(e.results);
-        const interimText = results.map(r => r[0].transcript).join('');
-        const finalText = results.filter(r => r.isFinal).map(r => r[0].transcript).join('').trim().toLowerCase();
         const wakeName = `hey ${(currentCompanion?.name || '').toLowerCase()}`;
 
+        // Build display text from results since composing started
         if (isComposing || isListening) {
-            messageInput.value = interimText;
-
-            if (finalText) {
-                if (finalText.includes('send message')) {
-                    messageInput.value = messageInput.value.replace(/send\s+message/gi, '').trim();
-                    stopComposing();
-                    sendMessage();
-                } else if (finalText.includes(wakeName)) {
-                    messageInput.value = '';
-                    stopComposing();
-                }
+            let text = '';
+            for (let i = composingStartIndex; i < e.results.length; i++) {
+                text += e.results[i][0].transcript;
             }
-        } else if (wakeWordActive && finalText.includes(wakeName)) {
-            startComposing();
+            messageInput.value = text;
+        }
+
+        // Only act on the newest final result
+        const allFinal = Array.from(e.results).filter(r => r.isFinal);
+        if (!allFinal.length) return;
+        const latest = allFinal[allFinal.length - 1][0].transcript.trim().toLowerCase();
+
+        if (isComposing || isListening) {
+            if (latest.includes('send message')) {
+                messageInput.value = messageInput.value.replace(/send\s+message/gi, '').trim();
+                stopComposing();
+                sendMessage();
+            } else if (latest.includes(wakeName)) {
+                messageInput.value = '';
+                stopComposing();
+            }
+        } else if (wakeWordActive && latest.includes(wakeName)) {
+            startComposing(e.results.length);
         }
     };
 
     recognition.onend = () => {
-        if (isComposing || isListening) {
-            try { recognition.start(); } catch (e) {}
-        } else if (wakeWordActive) {
-            setTimeout(() => {
-                if (wakeWordActive && !isComposing && !isListening) {
-                    try { recognition.start(); } catch (e) {}
-                }
-            }, 150);
+        if (wakeWordActive) {
+            setTimeout(() => { try { recognition.start(); } catch (e) {} }, 150);
         } else {
-            micBtn.textContent = '🎤';
-            micBtn.classList.remove('listening');
+            stopComposing();
         }
     };
 
     recognition.onerror = (e) => {
-        if (e.error === 'aborted' || e.error === 'no-speech') {
-            if (wakeWordActive && !isComposing && !isListening) {
-                setTimeout(() => { try { recognition.start(); } catch (err) {} }, 300);
-            }
-            return;
+        if (e.error === 'aborted') return;
+        if (wakeWordActive) {
+            setTimeout(() => { try { recognition.start(); } catch (err) {} }, 500);
+        } else {
+            stopComposing();
         }
-        stopComposing();
     };
 
     // Start wake word listener if voice was already enabled from a previous session
