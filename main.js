@@ -521,13 +521,25 @@ async function sendMessage() {
                 }
             }
             
-            // Verify we have a result for every tool use
+            // Verify we have a result for every tool use - if not, add error results
             if (toolResults.length !== toolUses.length) {
                 console.error('Mismatch: tool uses vs tool results', { toolUses: toolUses.length, toolResults: toolResults.length });
+                // Add error results for any missing tool results
+                toolUses.forEach(toolUse => {
+                    const hasResult = toolResults.some(r => r.tool_use_id === toolUse.id);
+                    if (!hasResult) {
+                        console.error('Missing result for tool:', toolUse.name, toolUse.id);
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: toolUse.id,
+                            content: `Error: Tool execution failed for ${toolUse.name}`
+                        });
+                    }
+                });
             }
             
             // If there were tool uses, we MUST send tool results back (Claude requires this)
-            if (toolUses.length > 0 && toolResults.length > 0) {
+            if (toolUses.length > 0) {
                 conversationHistory.push({
                     role: 'user',
                     content: toolResults
