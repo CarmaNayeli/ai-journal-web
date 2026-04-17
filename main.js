@@ -905,7 +905,7 @@ function renderTodos() {
         archiveBtn.className = 'archive-btn';
         
         const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = '�️';
+        deleteBtn.textContent = '🗑️';
         deleteBtn.title = 'Delete';
         deleteBtn.className = 'delete-btn';
         
