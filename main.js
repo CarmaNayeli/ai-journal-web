@@ -904,7 +904,18 @@ window.handleWelcomeContinue = function() {
     storage.set('hasSeenWelcome', true);
     welcomePanel.classList.add('hidden');
     
-    // Show companion selection
+    // Check if user has a saved companion
+    const savedCompanionId = storage.get('currentCompanion', null);
+    if (savedCompanionId && allCompanions.length > 0) {
+        // Load the last used companion
+        const companion = allCompanions.find(c => c.id === savedCompanionId);
+        if (companion) {
+            selectCompanion(companion);
+            return;
+        }
+    }
+    
+    // No saved companion - show companion selection
     const welcomeContent = document.querySelector('.welcome-content');
     welcomeContent.innerHTML = `
         <h1>🎭 Choose Your Companion</h1>

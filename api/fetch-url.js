@@ -65,20 +65,42 @@ export default async function handler(req) {
       let browser = null;
       try {
         browser = await puppeteer.launch({
-          args: chromium.args,
+          args: [
+            ...chromium.args,
+            '--disable-blink-features=AutomationControlled',
+            '--disable-features=IsolateOrigins,site-per-process'
+          ],
           defaultViewport: chromium.defaultViewport,
           executablePath: await chromium.executablePath(),
           headless: chromium.headless,
         });
 
         const page = await browser.newPage();
-        await page.setUserAgent('Mozilla/5.0 (compatible; AICompanionBot/1.0)');
+        
+        // Set realistic user agent
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
+        
+        // Set extra headers to look more like a real browser
+        await page.setExtraHTTPHeaders({
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        });
+        
+        // Hide webdriver property
+        await page.evaluateOnNewDocument(() => {
+          Object.defineProperty(navigator, 'webdriver', {
+            get: () => false,
+          });
+        });
         
         // Navigate and wait for network to be idle
         await page.goto(url, { 
           waitUntil: 'networkidle2',
-          timeout: 15000 
+          timeout: 20000 
         });
+        
+        // Wait a bit more for dynamic content
+        await page.waitForTimeout(2000);
         
         // Get the rendered HTML
         text = await page.content();
