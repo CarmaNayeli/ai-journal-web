@@ -82,7 +82,7 @@ export default async function handler(req) {
           '--no-zygote'
         ];
         
-        const executablePath = await chromium.executablePath('/tmp/chromium');
+        const executablePath = await chromium.executablePath();
         console.log('Chromium executable path:', executablePath);
         
         browser = await puppeteer.launch({
