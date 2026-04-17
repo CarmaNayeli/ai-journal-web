@@ -483,8 +483,11 @@ async function sendMessage() {
         typingIndicator.remove();
         
         // Check if there are tool uses
+        console.log('Assistant content blocks:', assistantContent.length);
+        console.log('Assistant content:', assistantContent.map(b => ({ type: b.type, name: b.name || 'N/A' })));
         const toolUses = assistantContent.filter(block => block.type === 'tool_use');
         const textBlocks = assistantContent.filter(block => block.type === 'text');
+        console.log('Filtered tool uses:', toolUses.length);
         
         // Display text response
         if (textBlocks.length > 0) {
@@ -500,6 +503,8 @@ async function sendMessage() {
         
         // Handle tool uses
         if (toolUses.length > 0) {
+            console.log('Total tool uses to process:', toolUses.length);
+            console.log('Tool use details:', toolUses.map(t => ({ name: t.name, id: t.id })));
             const toolResults = [];
             
             for (const toolUse of toolUses) {
