@@ -65,7 +65,7 @@ async function loadCompanions() {
         const companionFiles = [
             'anchor', 'athena', 'bloom', 'bolt', 'chrysalis', 'compass',
             'echo', 'keeper', 'luna', 'muse', 'phoenix', 'prism',
-            'river', 'rowan', 'sage', 'spark', 'sunny', 'tide',
+            'river', 'rowan', 'sylvan', 'spark', 'sunny', 'tide',
             'vesper', 'willow'
         ];
         
