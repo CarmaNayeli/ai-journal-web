@@ -363,17 +363,13 @@ async function sendMessage() {
             },
             {
                 name: 'read_url',
-                description: 'Fetch and read the content from a URL. Useful for reading documentation, articles, or web pages. For JavaScript-heavy sites (SPAs, React apps, dynamic content), set render_js to true to use a headless browser.',
+                description: 'Fetch and read the content from a URL. Automatically tries simple fetch first, then retries with JS rendering if the content appears to be JavaScript-heavy. Works with static sites, documentation, and JavaScript-heavy sites (SPAs, React, Squarespace, etc.).',
                 input_schema: {
                     type: 'object',
                     properties: {
                         url: {
                             type: 'string',
                             description: 'The URL to fetch and read'
-                        },
-                        render_js: {
-                            type: 'boolean',
-                            description: 'Set to true for JavaScript-heavy sites that need browser rendering (slower, ~10-15 seconds). Default is false.'
                         }
                     },
                     required: ['url']
@@ -472,14 +468,13 @@ async function sendMessage() {
                     
                 } else if (toolUse.name === 'read_url') {
                     const url = toolUse.input.url;
-                    const renderJs = toolUse.input.render_js || false;
-                    addMessage(`📄 Fetching content from: ${url}${renderJs ? ' (rendering JS...)' : '...'}`, 'system');
+                    addMessage(`📄 Fetching content from: ${url}...`, 'system');
                     
                     try {
-                        // Use our own Vercel proxy (no CORS restrictions)
-                        const proxyUrl = `/api/fetch-url?url=${encodeURIComponent(url)}${renderJs ? '&js=true' : ''}`;
-                        const urlResponse = await fetch(proxyUrl);
-                        const urlData = await urlResponse.json();
+                        // Try simple fetch first
+                        let proxyUrl = `/api/fetch-url?url=${encodeURIComponent(url)}`;
+                        let urlResponse = await fetch(proxyUrl);
+                        let urlData = await urlResponse.json();
                         
                         if (urlData.error) {
                             toolResults.push({
@@ -490,13 +485,44 @@ async function sendMessage() {
                         } else if (urlData.content) {
                             // Strip HTML tags for cleaner text
                             const cleanText = urlData.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-                            const preview = cleanText.substring(0, 2000) + (cleanText.length > 2000 ? '...' : '');
                             
-                            toolResults.push({
-                                type: 'tool_result',
-                                tool_use_id: toolUse.id,
-                                content: preview || 'URL fetched but no content found.'
-                            });
+                            // Check if content is mostly JavaScript (heuristic)
+                            const jsIndicators = ['function(', 'var ', 'const ', 'let ', '=>', 'window.', 'document.'];
+                            const jsCount = jsIndicators.reduce((count, indicator) => 
+                                count + (cleanText.match(new RegExp(indicator, 'g')) || []).length, 0);
+                            const isJsHeavy = jsCount > 20 || cleanText.includes('__NEXT_DATA__') || cleanText.includes('webpack');
+                            
+                            if (isJsHeavy && cleanText.length < 5000) {
+                                // Retry with JS rendering
+                                addMessage(`🔄 Detected JS-heavy site, retrying with rendering...`, 'system');
+                                proxyUrl = `/api/fetch-url?url=${encodeURIComponent(url)}&js=true`;
+                                urlResponse = await fetch(proxyUrl);
+                                urlData = await urlResponse.json();
+                                
+                                if (urlData.content) {
+                                    const renderedText = urlData.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                                    const preview = renderedText.substring(0, 3000) + (renderedText.length > 3000 ? '...' : '');
+                                    toolResults.push({
+                                        type: 'tool_result',
+                                        tool_use_id: toolUse.id,
+                                        content: preview || 'URL fetched but no content found.'
+                                    });
+                                } else {
+                                    toolResults.push({
+                                        type: 'tool_result',
+                                        tool_use_id: toolUse.id,
+                                        content: 'Unable to render JavaScript content.'
+                                    });
+                                }
+                            } else {
+                                // Use the simple fetch result
+                                const preview = cleanText.substring(0, 3000) + (cleanText.length > 3000 ? '...' : '');
+                                toolResults.push({
+                                    type: 'tool_result',
+                                    tool_use_id: toolUse.id,
+                                    content: preview || 'URL fetched but no content found.'
+                                });
+                            }
                         } else {
                             toolResults.push({
                                 type: 'tool_result',
