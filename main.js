@@ -490,9 +490,11 @@ async function sendMessage() {
                             const jsIndicators = ['function\\(', 'var ', 'const ', 'let ', '=>', 'window\\.', 'document\\.'];
                             const jsCount = jsIndicators.reduce((count, indicator) => 
                                 count + (cleanText.match(new RegExp(indicator, 'g')) || []).length, 0);
-                            const isJsHeavy = jsCount > 20 || cleanText.includes('__NEXT_DATA__') || cleanText.includes('webpack');
+                            const isJsHeavy = jsCount > 20 || cleanText.includes('__NEXT_DATA__') || cleanText.includes('webpack') || cleanText.includes('squarespace');
                             
-                            if (isJsHeavy && cleanText.length < 5000) {
+                            // Trigger retry if JS-heavy OR if content is mostly code (high ratio of JS indicators to total length)
+                            const jsRatio = cleanText.length > 0 ? jsCount / (cleanText.length / 100) : 0;
+                            if (isJsHeavy || jsRatio > 0.5) {
                                 // Retry with JS rendering
                                 addMessage(`🔄 Detected JS-heavy site, retrying with rendering...`, 'system');
                                 proxyUrl = `/api/fetch-url?url=${encodeURIComponent(url)}&js=true`;
