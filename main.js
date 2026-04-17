@@ -281,6 +281,7 @@ function buildSystemPrompt() {
 - Use scope="shared" for identity info all companions should know (name, preferences, links, major projects)
 - Use scope="companion" (default) for notes specific to your domain, relationship, and conversations with the user
 - Save notes when you learn something new that would be helpful to remember in future conversations
+- Use read_companion_notes only when the user explicitly asks you to look at another companion's notes — it will prompt the user for permission first
 - Use todos to help the user track tasks and action items
 - Use web search and URL reading when the user needs current information or references external content
 - IMPORTANT: When managing todos, you can call multiple tools in the same response. For example, to mark a todo complete: first call list_todos to get the ID, then immediately call update_todo with that ID and completed=true. Don't wait for user confirmation between tool calls.`
@@ -387,6 +388,20 @@ async function sendMessage() {
                         }
                     },
                     required: ['note']
+                }
+            },
+            {
+                name: 'read_companion_notes',
+                description: 'Read another companion\'s private notes, with user permission. Only use this when the user explicitly asks you to look at what another companion knows or has recorded. The user will be prompted to approve access.',
+                input_schema: {
+                    type: 'object',
+                    properties: {
+                        companion_id: {
+                            type: 'string',
+                            description: 'The ID of the companion whose notes you want to read (e.g. "muse", "river", "keeper")'
+                        }
+                    },
+                    required: ['companion_id']
                 }
             },
             {
@@ -537,7 +552,31 @@ async function sendMessage() {
             
             for (const toolUse of toolUses) {
                 console.log('Processing tool:', toolUse.name, 'with ID:', toolUse.id);
-                if (toolUse.name === 'save_note') {
+                if (toolUse.name === 'read_companion_notes') {
+                    const targetId = toolUse.input.companion_id?.toLowerCase();
+                    const targetCompanion = allCompanions.find(c => c.id === targetId);
+                    const targetName = targetCompanion?.name || targetId;
+                    const permitted = confirm(`${currentCompanion?.name} wants to read ${targetName}'s private notes. Allow?`);
+                    if (permitted) {
+                        const notes = storage.get(`notes_${targetId}`, '');
+                        addMessage(`🔓 Access granted: ${currentCompanion?.name} can see ${targetName}'s notes.`, 'system');
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: toolUse.id,
+                            content: notes
+                                ? `${targetName}'s notes:\n${notes}`
+                                : `${targetName} has no companion-specific notes saved yet.`
+                        });
+                    } else {
+                        addMessage(`🔒 Access denied: ${currentCompanion?.name} cannot see ${targetName}'s notes.`, 'system');
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: toolUse.id,
+                            content: `User did not grant permission to read ${targetName}'s notes.`
+                        });
+                    }
+
+                } else if (toolUse.name === 'save_note') {
                     const note = toolUse.input.note;
                     const scope = toolUse.input.scope || 'companion';
                     const storageKey = scope === 'shared' ? 'notes_shared' : `notes_${currentCompanion?.id || 'unknown'}`;
