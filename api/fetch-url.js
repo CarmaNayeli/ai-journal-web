@@ -32,7 +32,8 @@ export default async function handler(req) {
 
   try {
     // Parse URL properly - req.url might be relative or absolute
-    const urlObj = new URL(req.url, `https://${req.headers.get('host') || 'localhost'}`);
+    const host = req.headers.host || req.headers['host'] || 'localhost';
+    const urlObj = new URL(req.url, `https://${host}`);
     const url = urlObj.searchParams.get('url');
 
     if (!url) {
