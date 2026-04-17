@@ -374,6 +374,86 @@ async function sendMessage() {
                     },
                     required: ['url']
                 }
+            },
+            {
+                name: 'add_todo',
+                description: 'Add a new todo item to the user\'s todo list.',
+                input_schema: {
+                    type: 'object',
+                    properties: {
+                        text: {
+                            type: 'string',
+                            description: 'The todo item text'
+                        },
+                        description: {
+                            type: 'string',
+                            description: 'Optional description or additional details for the todo item'
+                        },
+                        link: {
+                            type: 'string',
+                            description: 'Optional URL link related to the todo item'
+                        }
+                    },
+                    required: ['text']
+                }
+            },
+            {
+                name: 'remove_todo',
+                description: 'Remove a todo item from the user\'s todo list by its ID.',
+                input_schema: {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            description: 'The ID of the todo item to remove'
+                        }
+                    },
+                    required: ['id']
+                }
+            },
+            {
+                name: 'update_todo',
+                description: 'Update an existing todo item (text, description, link, or completion status).',
+                input_schema: {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            description: 'The ID of the todo item to update'
+                        },
+                        text: {
+                            type: 'string',
+                            description: 'The new todo item text'
+                        },
+                        description: {
+                            type: 'string',
+                            description: 'New description or additional details for the todo item'
+                        },
+                        link: {
+                            type: 'string',
+                            description: 'New URL link related to the todo item'
+                        },
+                        completed: {
+                            type: 'boolean',
+                            description: 'Whether the todo item is completed'
+                        }
+                    },
+                    required: ['id']
+                }
+            },
+            {
+                name: 'list_todos',
+                description: 'Get all todo items from the user\'s todo list. By default only shows active (incomplete) todos. Set include_archived to true to see completed todos as well.',
+                input_schema: {
+                    type: 'object',
+                    properties: {
+                        include_archived: {
+                            type: 'boolean',
+                            description: 'If true, includes completed/archived todos in the list. Default is false.'
+                        }
+                    },
+                    required: []
+                }
             }
         ];
         
@@ -539,6 +619,116 @@ async function sendMessage() {
                             content: `Error fetching URL: ${error.message}. The URL may be blocked or inaccessible.`
                         });
                     }
+                } else if (toolUse.name === 'add_todo') {
+                    const { text, description, link } = toolUse.input;
+                    const todo = {
+                        id: Date.now().toString(),
+                        text,
+                        description: description || '',
+                        link: link || '',
+                        completed: false,
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    const todos = storage.get('todos', []);
+                    todos.push(todo);
+                    storage.set('todos', todos);
+                    
+                    // Refresh todo panel if open
+                    if (window.todoPanel && !window.todoPanel.classList.contains('hidden')) {
+                        window.loadTodos();
+                    }
+                    
+                    addMessage(`✅ Added todo: "${text}"`, 'system');
+                    toolResults.push({
+                        type: 'tool_result',
+                        tool_use_id: toolUse.id,
+                        content: `Todo added successfully: "${text}"`
+                    });
+                    
+                } else if (toolUse.name === 'remove_todo') {
+                    const { id } = toolUse.input;
+                    const todos = storage.get('todos', []);
+                    const index = todos.findIndex(t => t.id === id);
+                    
+                    if (index !== -1) {
+                        const removed = todos.splice(index, 1)[0];
+                        storage.set('todos', todos);
+                        
+                        // Refresh todo panel if open
+                        if (window.todoPanel && !window.todoPanel.classList.contains('hidden')) {
+                            window.loadTodos();
+                        }
+                        
+                        addMessage(`🗑️ Removed todo: "${removed.text}"`, 'system');
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: toolUse.id,
+                            content: `Todo removed successfully: "${removed.text}"`
+                        });
+                    } else {
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: toolUse.id,
+                            content: `Todo with ID ${id} not found`
+                        });
+                    }
+                    
+                } else if (toolUse.name === 'update_todo') {
+                    const { id, text, description, link, completed } = toolUse.input;
+                    const todos = storage.get('todos', []);
+                    const todo = todos.find(t => t.id === id);
+                    
+                    if (todo) {
+                        if (text !== undefined) todo.text = text;
+                        if (description !== undefined) todo.description = description;
+                        if (link !== undefined) todo.link = link;
+                        if (completed !== undefined) todo.completed = completed;
+                        
+                        storage.set('todos', todos);
+                        
+                        // Refresh todo panel if open
+                        if (window.todoPanel && !window.todoPanel.classList.contains('hidden')) {
+                            window.loadTodos();
+                        }
+                        
+                        addMessage(`✏️ Updated todo: "${todo.text}"`, 'system');
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: toolUse.id,
+                            content: `Todo updated successfully: "${todo.text}"`
+                        });
+                    } else {
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: toolUse.id,
+                            content: `Todo with ID ${id} not found`
+                        });
+                    }
+                    
+                } else if (toolUse.name === 'list_todos') {
+                    const includeArchived = toolUse.input.include_archived || false;
+                    const todos = storage.get('todos', []);
+                    const filtered = includeArchived ? todos : todos.filter(t => !t.completed);
+                    
+                    if (filtered.length === 0) {
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: toolUse.id,
+                            content: includeArchived ? 'No todos found.' : 'No active todos. All caught up!'
+                        });
+                    } else {
+                        const todoList = filtered.map(t => 
+                            `- [${t.completed ? 'x' : ' '}] ${t.text}${t.description ? ` (${t.description})` : ''}${t.link ? ` - ${t.link}` : ''}`
+                        ).join('\n');
+                        
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: toolUse.id,
+                            content: `Todo list (${filtered.length} items):\n${todoList}`
+                        });
+                    }
+                    
                 } else {
                     // Unknown tool - still need to provide a result
                     toolResults.push({
