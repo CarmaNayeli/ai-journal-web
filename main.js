@@ -470,42 +470,35 @@ async function sendMessage() {
         ];
         
         // Use proxy endpoint to avoid CORS issues
-        const response = await axios.post('/api/chat', {
+        let response = await axios.post('/api/chat', {
             apiKey: apiKey,
             system: buildSystemPrompt(),
             messages: conversationHistory,
             tools: tools
         });
         
-        const assistantContent = response.data.content;
-        
-        // Remove typing indicator
-        typingIndicator.remove();
-        
-        // Check if there are tool uses
-        console.log('Assistant content blocks:', assistantContent.length);
-        console.log('Assistant content:', assistantContent.map(b => ({ type: b.type, name: b.name || 'N/A' })));
-        const toolUses = assistantContent.filter(block => block.type === 'tool_use');
-        const textBlocks = assistantContent.filter(block => block.type === 'text');
-        console.log('Filtered tool uses:', toolUses.length);
-        
-        // Display text response
-        if (textBlocks.length > 0) {
-            const assistantMessage = textBlocks.map(b => b.text).join('\n');
-            addMessage(assistantMessage, 'assistant');
-        }
-        
-        // Add assistant message to history BEFORE handling tools
-        conversationHistory.push({
-            role: 'assistant',
-            content: assistantContent
-        });
-        
-        // Handle tool uses
-        if (toolUses.length > 0) {
-            console.log('Total tool uses to process:', toolUses.length);
-            console.log('Tool use details:', toolUses.map(t => ({ name: t.name, id: t.id })));
+        // Handle tool use loop - keep calling Claude until it stops using tools
+        while (response.data.stop_reason === 'tool_use') {
+            const assistantContent = response.data.content;
+            
+            // Add assistant message to history
+            conversationHistory.push({
+                role: 'assistant',
+                content: assistantContent
+            });
+            
+            // Show any text the assistant said before using tools
+            const textBlocks = assistantContent.filter(b => b.type === 'text');
+            if (textBlocks.length > 0) {
+                typingIndicator.remove();
+                addMessage(textBlocks.map(b => b.text).join('\n'), 'assistant');
+                typingIndicator = addTypingIndicator();
+            }
+            
+            // Process all tool uses
             const toolResults = [];
+            const toolUses = assistantContent.filter(block => block.type === 'tool_use');
+            console.log('Tool use loop - processing', toolUses.length, 'tools');
             
             for (const toolUse of toolUses) {
                 console.log('Processing tool:', toolUse.name, 'with ID:', toolUse.id);
@@ -804,44 +797,40 @@ async function sendMessage() {
                 });
             }
             
-            // If there were tool uses, we MUST send tool results back (Claude requires this)
-            if (toolUses.length > 0) {
-                conversationHistory.push({
-                    role: 'user',
-                    content: toolResults
-                });
-                
-                // Make another API call with tool results
-                const followUpResponse = await axios.post('/api/chat', {
-                    apiKey: apiKey,
-                    system: buildSystemPrompt(),
-                    messages: conversationHistory,
-                    tools: tools
-                });
-                
-                const followUpContent = followUpResponse.data.content;
-                const followUpText = followUpContent.filter(b => b.type === 'text').map(b => b.text).join('\n');
-                
-                if (followUpText) {
-                    addMessage(followUpText, 'assistant');
-                }
-                
-                conversationHistory.push({
-                    role: 'assistant',
-                    content: followUpContent
-                });
-                
-                if (journalRecording && followUpText) {
-                    saveToJournal(message, followUpText);
-                }
-                
-                return; // Exit early since we handled the follow-up
-            }
+            // Send tool results back to Claude and continue the loop
+            conversationHistory.push({
+                role: 'user',
+                content: toolResults
+            });
+            
+            // Make another API call with tool results
+            response = await axios.post('/api/chat', {
+                apiKey: apiKey,
+                system: buildSystemPrompt(),
+                messages: conversationHistory,
+                tools: tools
+            });
         }
         
-        // Save to journal if recording (only if no tools were used)
-        if (journalRecording && textBlocks.length > 0) {
-            saveToJournal(message, textBlocks.map(b => b.text).join('\n'));
+        // Remove typing indicator
+        typingIndicator.remove();
+        
+        // Extract final text response (after all tool uses are done)
+        const finalContent = response.data.content;
+        const finalText = finalContent.filter(b => b.type === 'text').map(b => b.text).join('\n');
+        
+        if (finalText) {
+            addMessage(finalText, 'assistant');
+        }
+        
+        conversationHistory.push({
+            role: 'assistant',
+            content: finalContent
+        });
+        
+        // Save to journal if recording
+        if (journalRecording && finalText) {
+            saveToJournal(message, finalText);
         }
         
     } catch (error) {
