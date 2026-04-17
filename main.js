@@ -471,20 +471,34 @@ async function sendMessage() {
                     addMessage(`📄 Fetching content from: ${url}...`, 'system');
                     
                     try {
-                        // Use corsproxy.io for fetching URLs
-                        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+                        // Use our own Vercel proxy (no CORS restrictions)
+                        const proxyUrl = `/api/fetch-url?url=${encodeURIComponent(url)}`;
                         const urlResponse = await fetch(proxyUrl);
-                        const text = await urlResponse.text();
+                        const urlData = await urlResponse.json();
                         
-                        // Strip HTML tags for cleaner text
-                        const cleanText = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-                        const preview = cleanText.substring(0, 2000) + (cleanText.length > 2000 ? '...' : '');
-                        
-                        toolResults.push({
-                            type: 'tool_result',
-                            tool_use_id: toolUse.id,
-                            content: preview || 'URL fetched but no content found.'
-                        });
+                        if (urlData.error) {
+                            toolResults.push({
+                                type: 'tool_result',
+                                tool_use_id: toolUse.id,
+                                content: `Error fetching URL: ${urlData.error}`
+                            });
+                        } else if (urlData.content) {
+                            // Strip HTML tags for cleaner text
+                            const cleanText = urlData.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                            const preview = cleanText.substring(0, 2000) + (cleanText.length > 2000 ? '...' : '');
+                            
+                            toolResults.push({
+                                type: 'tool_result',
+                                tool_use_id: toolUse.id,
+                                content: preview || 'URL fetched but no content found.'
+                            });
+                        } else {
+                            toolResults.push({
+                                type: 'tool_result',
+                                tool_use_id: toolUse.id,
+                                content: 'Unable to fetch URL content.'
+                            });
+                        }
                     } catch (error) {
                         toolResults.push({
                             type: 'tool_result',
