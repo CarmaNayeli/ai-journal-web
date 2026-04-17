@@ -363,13 +363,17 @@ async function sendMessage() {
             },
             {
                 name: 'read_url',
-                description: 'Fetch and read the content from a URL. Useful for reading documentation, articles, or web pages that the user references.',
+                description: 'Fetch and read the content from a URL. Useful for reading documentation, articles, or web pages that the user references. For JavaScript-heavy sites (SPAs, React apps), add js=true parameter.',
                 input_schema: {
                     type: 'object',
                     properties: {
                         url: {
                             type: 'string',
                             description: 'The URL to fetch and read'
+                        },
+                        render_js: {
+                            type: 'boolean',
+                            description: 'Set to true for JavaScript-heavy sites that need rendering (slower but more complete). Default is false.'
                         }
                     },
                     required: ['url']
@@ -468,11 +472,12 @@ async function sendMessage() {
                     
                 } else if (toolUse.name === 'read_url') {
                     const url = toolUse.input.url;
-                    addMessage(`📄 Fetching content from: ${url}...`, 'system');
+                    const renderJs = toolUse.input.render_js || false;
+                    addMessage(`📄 Fetching content from: ${url}${renderJs ? ' (rendering JS...)' : '...'}`, 'system');
                     
                     try {
                         // Use our own Vercel proxy (no CORS restrictions)
-                        const proxyUrl = `/api/fetch-url?url=${encodeURIComponent(url)}`;
+                        const proxyUrl = `/api/fetch-url?url=${encodeURIComponent(url)}${renderJs ? '&js=true' : ''}`;
                         const urlResponse = await fetch(proxyUrl);
                         const urlData = await urlResponse.json();
                         

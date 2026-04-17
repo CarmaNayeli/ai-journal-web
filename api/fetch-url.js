@@ -1,5 +1,9 @@
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
+
 export const config = {
-  runtime: 'edge',
+  runtime: 'nodejs',
+  maxDuration: 30,
 };
 
 export default async function handler(req) {
@@ -52,29 +56,63 @@ export default async function handler(req) {
       });
     }
 
-    // Fetch the URL server-side (no CORS restrictions)
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; AICompanionBot/1.0)',
-      },
-    });
+    // Check if we should use Puppeteer (for JS-heavy sites)
+    const useJs = searchParams.get('js') === 'true';
+    let text;
 
-    if (!response.ok) {
-      return new Response(
-        JSON.stringify({ 
-          error: `Failed to fetch URL: ${response.status} ${response.statusText}` 
-        }),
-        {
-          status: response.status,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-        }
-      );
+    if (useJs) {
+      // Use Puppeteer to render JavaScript
+      let browser = null;
+      try {
+        browser = await puppeteer.launch({
+          args: chromium.args,
+          defaultViewport: chromium.defaultViewport,
+          executablePath: await chromium.executablePath(),
+          headless: chromium.headless,
+        });
+
+        const page = await browser.newPage();
+        await page.setUserAgent('Mozilla/5.0 (compatible; AICompanionBot/1.0)');
+        
+        // Navigate and wait for network to be idle
+        await page.goto(url, { 
+          waitUntil: 'networkidle2',
+          timeout: 15000 
+        });
+        
+        // Get the rendered HTML
+        text = await page.content();
+        
+        await browser.close();
+      } catch (error) {
+        if (browser) await browser.close();
+        throw new Error(`Puppeteer error: ${error.message}`);
+      }
+    } else {
+      // Simple fetch for static sites
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; AICompanionBot/1.0)',
+        },
+      });
+
+      if (!response.ok) {
+        return new Response(
+          JSON.stringify({ 
+            error: `Failed to fetch URL: ${response.status} ${response.statusText}` 
+          }),
+          {
+            status: response.status,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+            },
+          }
+        );
+      }
+
+      text = await response.text();
     }
-
-    const text = await response.text();
 
     return new Response(JSON.stringify({ content: text }), {
       status: 200,
