@@ -64,6 +64,10 @@ export default async function handler(req) {
       // Use Puppeteer to render JavaScript
       let browser = null;
       try {
+        console.log('Launching Puppeteer for URL:', url);
+        const executablePath = await chromium.executablePath();
+        console.log('Chromium executable path:', executablePath);
+        
         browser = await puppeteer.launch({
           args: [
             ...chromium.args,
@@ -71,9 +75,11 @@ export default async function handler(req) {
             '--disable-features=IsolateOrigins,site-per-process'
           ],
           defaultViewport: chromium.defaultViewport,
-          executablePath: await chromium.executablePath(),
+          executablePath: executablePath,
           headless: chromium.headless,
         });
+        
+        console.log('Browser launched successfully');
 
         const page = await browser.newPage();
         
@@ -93,21 +99,32 @@ export default async function handler(req) {
           });
         });
         
+        console.log('Navigating to URL...');
         // Navigate and wait for network to be idle
         await page.goto(url, { 
-          waitUntil: 'networkidle2',
-          timeout: 20000 
+          waitUntil: ['load', 'networkidle0'],
+          timeout: 25000 
         });
         
+        console.log('Page loaded, waiting for dynamic content...');
         // Wait a bit more for dynamic content
-        await page.waitForTimeout(2000);
+        await new Promise(resolve => setTimeout(resolve, 3000));
         
+        console.log('Getting page content...');
         // Get the rendered HTML
         text = await page.content();
+        console.log('Content retrieved, length:', text.length);
         
         await browser.close();
       } catch (error) {
-        if (browser) await browser.close();
+        if (browser) {
+          try {
+            await browser.close();
+          } catch (e) {
+            console.error('Error closing browser:', e);
+          }
+        }
+        console.error('Puppeteer error details:', error);
         throw new Error(`Puppeteer error: ${error.message}`);
       }
     } else {
