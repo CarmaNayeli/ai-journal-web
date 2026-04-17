@@ -884,11 +884,16 @@ function renderTodos() {
 }
 
 window.toggleTodo = function(id) {
+    console.log('toggleTodo called with id:', id);
     const todo = todos.find(t => t.id === id);
+    console.log('Found todo:', todo);
     if (todo) {
         todo.completed = !todo.completed;
         storage.set('todos', todos);
+        console.log('Todo updated, re-rendering');
         renderTodos();
+    } else {
+        console.error('Todo not found with id:', id);
     }
 };
 
