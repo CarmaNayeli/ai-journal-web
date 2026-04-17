@@ -410,6 +410,80 @@ saveSettingsBtn.addEventListener('click', () => {
     }
 });
 
+// Export data
+const exportDataBtn = document.getElementById('exportDataBtn');
+const importDataBtn = document.getElementById('importDataBtn');
+const importFileInput = document.getElementById('importFileInput');
+
+exportDataBtn.addEventListener('click', () => {
+    const data = {
+        version: '1.0',
+        exportDate: new Date().toISOString(),
+        currentCompanion: storage.get('currentCompanion', 'rowan'),
+        journal: storage.get('journal', []),
+        todos: storage.get('todos', []),
+        hasSeenWelcome: storage.get('hasSeenWelcome', false),
+        hasSeenApiSetup: storage.get('hasSeenApiSetup', false)
+        // Note: API key is NOT exported for security
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ai-journal-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    addMessage('✅ Data exported successfully! (API key not included for security)', 'system');
+});
+
+importDataBtn.addEventListener('click', () => {
+    importFileInput.click();
+});
+
+importFileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        
+        if (!data.version || !data.exportDate) {
+            throw new Error('Invalid backup file format');
+        }
+        
+        // Confirm before importing
+        if (!confirm('This will replace your current journal entries and todos. Continue?')) {
+            importFileInput.value = '';
+            return;
+        }
+        
+        // Import data
+        if (data.currentCompanion) storage.set('currentCompanion', data.currentCompanion);
+        if (data.journal) storage.set('journal', data.journal);
+        if (data.todos) storage.set('todos', data.todos);
+        if (data.hasSeenWelcome !== undefined) storage.set('hasSeenWelcome', data.hasSeenWelcome);
+        if (data.hasSeenApiSetup !== undefined) storage.set('hasSeenApiSetup', data.hasSeenApiSetup);
+        
+        addMessage(`✅ Data imported successfully! ${data.journal?.length || 0} journal entries and ${data.todos?.length || 0} todos restored.`, 'system');
+        
+        // Reload the page to apply changes
+        setTimeout(() => {
+            location.reload();
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Import error:', error);
+        addMessage('❌ Error importing data: ' + error.message, 'system');
+    }
+    
+    importFileInput.value = '';
+});
+
 contextBtn.addEventListener('click', () => {
     contextPanel.classList.toggle('hidden');
     if (!contextPanel.classList.contains('hidden')) {
