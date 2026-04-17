@@ -455,7 +455,7 @@ async function sendMessage() {
             },
             {
                 name: 'list_todos',
-                description: 'Get all todo items AND optionally mark one as complete in a single call. If the user asks you to mark a todo complete, first call this to get the list, then immediately call it AGAIN with mark_complete_id set to the todo\'s ID to mark it complete.',
+                description: 'Get all todo items AND optionally mark one as complete. To mark a todo complete: call this tool with mark_complete_id set to the todo ID you want to mark complete. You can get the ID by first calling list_todos without parameters to see all todos with their IDs.',
                 input_schema: {
                     type: 'object',
                     properties: {
@@ -465,7 +465,7 @@ async function sendMessage() {
                         },
                         mark_complete_id: {
                             type: 'string',
-                            description: 'IMPORTANT: Set this to a todo\'s ID to mark it as complete. When the user asks you to check off or complete a todo, you MUST call list_todos twice: once to see the list and get the ID, then again with this parameter set to that ID.'
+                            description: 'Set this to a todo\'s ID (like "1776433766967") to mark it as complete. Example: if you see a todo with ID "1776433766967", call list_todos with mark_complete_id="1776433766967" to mark it complete.'
                         }
                     },
                     required: []
