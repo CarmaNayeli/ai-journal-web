@@ -867,17 +867,35 @@ function renderTodos() {
     filteredTodos.forEach((todo) => {
         const todoItem = document.createElement('div');
         todoItem.className = `todo-item ${todo.completed ? 'completed' : ''} ${todo.archived ? 'archived' : ''}`;
+        todoItem.dataset.todoId = todo.id;
         
-        todoItem.innerHTML = `
-            <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="window.toggleTodo('${todo.id}')">
-            <span>${todo.text}</span>
-            <div class="todo-actions">
-                <button onclick="window.archiveTodo('${todo.id}')" title="${todo.archived ? 'Unarchive' : 'Archive'}">
-                    ${todo.archived ? '📤' : '📦'}
-                </button>
-                <button onclick="window.deleteTodo('${todo.id}')" title="Delete">🗑️</button>
-            </div>
-        `;
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = todo.completed;
+        checkbox.className = 'todo-checkbox';
+        
+        const span = document.createElement('span');
+        span.textContent = todo.text;
+        
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'todo-actions';
+        
+        const archiveBtn = document.createElement('button');
+        archiveBtn.textContent = todo.archived ? '📤' : '📦';
+        archiveBtn.title = todo.archived ? 'Unarchive' : 'Archive';
+        archiveBtn.className = 'archive-btn';
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = '�️';
+        deleteBtn.title = 'Delete';
+        deleteBtn.className = 'delete-btn';
+        
+        actionsDiv.appendChild(archiveBtn);
+        actionsDiv.appendChild(deleteBtn);
+        
+        todoItem.appendChild(checkbox);
+        todoItem.appendChild(span);
+        todoItem.appendChild(actionsDiv);
         
         todoList.appendChild(todoItem);
     });
@@ -1090,10 +1108,35 @@ closeTodoBtn.addEventListener('click', () => {
 addTodoBtn.addEventListener('click', () => {
     const text = newTodoInput.value.trim();
     if (text) {
-        todos.push({ text, completed: false, archived: false });
+        todos.push({ 
+            id: Date.now().toString(),
+            text, 
+            completed: false, 
+            archived: false,
+            createdAt: new Date().toISOString()
+        });
         storage.set('todos', todos);
         newTodoInput.value = '';
         renderTodos();
+    }
+});
+
+// Event delegation for todo list
+todoList.addEventListener('click', (e) => {
+    const todoItem = e.target.closest('.todo-item');
+    if (!todoItem) return;
+    
+    const todoId = todoItem.dataset.todoId;
+    
+    if (e.target.classList.contains('todo-checkbox')) {
+        console.log('Checkbox clicked for todo:', todoId);
+        window.toggleTodo(todoId);
+    } else if (e.target.classList.contains('archive-btn')) {
+        console.log('Archive clicked for todo:', todoId);
+        window.archiveTodo(todoId);
+    } else if (e.target.classList.contains('delete-btn')) {
+        console.log('Delete clicked for todo:', todoId);
+        window.deleteTodo(todoId);
     }
 });
 
