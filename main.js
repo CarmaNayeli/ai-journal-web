@@ -502,6 +502,7 @@ async function sendMessage() {
             const toolResults = [];
             
             for (const toolUse of toolUses) {
+                console.log('Processing tool:', toolUse.name, 'with ID:', toolUse.id);
                 if (toolUse.name === 'save_note') {
                     const note = toolUse.input.note;
                     const currentNotes = storage.get('contextNotes', '');
