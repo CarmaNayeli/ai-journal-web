@@ -667,8 +667,8 @@ async function sendMessage() {
                         storage.set('todos', todos);
                         
                         // Refresh todo panel if open
-                        if (window.todoPanel && !window.todoPanel.classList.contains('hidden')) {
-                            window.loadTodos();
+                        if (todoPanel && !todoPanel.classList.contains('hidden')) {
+                            renderTodos();
                         }
                         
                         addMessage(`🗑️ Removed todo: "${removed.text}"`, 'system');
@@ -699,8 +699,8 @@ async function sendMessage() {
                         storage.set('todos', todos);
                         
                         // Refresh todo panel if open
-                        if (window.todoPanel && !window.todoPanel.classList.contains('hidden')) {
-                            window.loadTodos();
+                        if (todoPanel && !todoPanel.classList.contains('hidden')) {
+                            renderTodos();
                         }
                         
                         addMessage(`✏️ Updated todo: "${todo.text}"`, 'system');
@@ -1121,8 +1121,23 @@ addTodoBtn.addEventListener('click', () => {
     }
 });
 
-// Event delegation for todo list
+// Event delegation for todo list - using both click and change events
 console.log('Setting up todo list event listener on:', todoList);
+
+// Handle checkbox changes
+todoList.addEventListener('change', (e) => {
+    console.log('Todo list change event!', e.target);
+    if (e.target.classList.contains('todo-checkbox')) {
+        const todoItem = e.target.closest('.todo-item');
+        if (todoItem) {
+            const todoId = todoItem.dataset.todoId;
+            console.log('Checkbox changed for todo:', todoId);
+            window.toggleTodo(todoId);
+        }
+    }
+});
+
+// Handle button clicks
 todoList.addEventListener('click', (e) => {
     console.log('Todo list clicked!', e.target);
     const todoItem = e.target.closest('.todo-item');
@@ -1132,10 +1147,7 @@ todoList.addEventListener('click', (e) => {
     const todoId = todoItem.dataset.todoId;
     console.log('Todo ID:', todoId);
     
-    if (e.target.classList.contains('todo-checkbox')) {
-        console.log('Checkbox clicked for todo:', todoId);
-        window.toggleTodo(todoId);
-    } else if (e.target.classList.contains('archive-btn')) {
+    if (e.target.classList.contains('archive-btn')) {
         console.log('Archive clicked for todo:', todoId);
         window.archiveTodo(todoId);
     } else if (e.target.classList.contains('delete-btn')) {
