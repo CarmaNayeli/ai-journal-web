@@ -393,6 +393,12 @@ async function sendMessage() {
             addMessage(assistantMessage, 'assistant');
         }
         
+        // Add assistant message to history BEFORE handling tools
+        conversationHistory.push({
+            role: 'assistant',
+            content: assistantContent
+        });
+        
         // Handle tool uses
         if (toolUses.length > 0) {
             const toolResults = [];
@@ -458,33 +464,25 @@ async function sendMessage() {
                     addMessage(`📄 Fetching content from: ${url}...`, 'system');
                     
                     try {
-                        // Use a CORS proxy for fetching URLs
-                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+                        // Use corsproxy.io for fetching URLs
+                        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
                         const urlResponse = await fetch(proxyUrl);
-                        const urlData = await urlResponse.json();
+                        const text = await urlResponse.text();
                         
-                        if (urlData.contents) {
-                            // Strip HTML tags for cleaner text
-                            const text = urlData.contents.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-                            const preview = text.substring(0, 2000) + (text.length > 2000 ? '...' : '');
-                            
-                            toolResults.push({
-                                type: 'tool_result',
-                                tool_use_id: toolUse.id,
-                                content: preview
-                            });
-                        } else {
-                            toolResults.push({
-                                type: 'tool_result',
-                                tool_use_id: toolUse.id,
-                                content: 'Unable to fetch URL content.'
-                            });
-                        }
+                        // Strip HTML tags for cleaner text
+                        const cleanText = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                        const preview = cleanText.substring(0, 2000) + (cleanText.length > 2000 ? '...' : '');
+                        
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: toolUse.id,
+                            content: preview || 'URL fetched but no content found.'
+                        });
                     } catch (error) {
                         toolResults.push({
                             type: 'tool_result',
                             tool_use_id: toolUse.id,
-                            content: `Error fetching URL: ${error.message}`
+                            content: `Error fetching URL: ${error.message}. The URL may be blocked or inaccessible.`
                         });
                     }
                 }
@@ -525,12 +523,7 @@ async function sendMessage() {
             }
         }
         
-        conversationHistory.push({
-            role: 'assistant',
-            content: assistantContent
-        });
-        
-        // Save to journal if recording
+        // Save to journal if recording (only if no tools were used)
         if (journalRecording && textBlocks.length > 0) {
             saveToJournal(message, textBlocks.map(b => b.text).join('\n'));
         }
