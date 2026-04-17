@@ -455,21 +455,13 @@ async function sendMessage() {
             },
             {
                 name: 'list_todos',
-                description: 'Get all todo items AND optionally mark one as complete. To mark a todo complete: call this tool with mark_complete_id set to the todo ID you want to mark complete. You can get the ID by first calling list_todos without parameters to see all todos with their IDs.',
+                description: 'Get all todo items from the user\'s todo list. By default only shows active (incomplete) todos. Set include_archived to true to see completed todos as well.',
                 input_schema: {
                     type: 'object',
                     properties: {
                         include_archived: {
                             type: 'boolean',
-                            description: 'Whether to include archived/completed todos in the list'
-                        },
-                        mark_complete_id: {
-                            type: 'string',
-                            description: 'Set this to a todo\'s ID (like "1776433766967") to mark it as complete. Example: if you see a todo with ID "1776433766967", call list_todos with mark_complete_id="1776433766967" to mark it complete.'
-                        },
-                        mark_complete_text: {
-                            type: 'string',
-                            description: 'Alternative to mark_complete_id: Set this to the exact text of a todo to mark it complete. Example: mark_complete_text="Test to do list!" will find and mark that todo complete.'
+                            description: 'If true, includes completed/archived todos in the list. Default is false.'
                         }
                     },
                     required: []
@@ -756,61 +748,25 @@ async function sendMessage() {
                     
                 } else if (toolUse.name === 'list_todos') {
                     try {
-                        console.log('list_todos input:', toolUse.input);
                         const includeArchived = toolUse.input.include_archived || false;
-                        const markCompleteId = toolUse.input.mark_complete_id;
-                        const markCompleteText = toolUse.input.mark_complete_text;
-                        console.log('mark_complete_id:', markCompleteId);
-                        console.log('mark_complete_text:', markCompleteText);
                         todos = storage.get('todos', []);
-                        console.log('All todos:', todos);
-                        
-                        // Mark todo as complete if requested
-                        let markedComplete = null;
-                        if (markCompleteId || markCompleteText) {
-                            const todo = markCompleteId 
-                                ? todos.find(t => t.id === markCompleteId)
-                                : todos.find(t => t.text === markCompleteText);
-                            
-                            if (todo) {
-                                todo.completed = true;
-                                storage.set('todos', todos);
-                                markedComplete = todo.text;
-                                console.log('Marked complete:', markedComplete);
-                                
-                                // Refresh UI if panel is open
-                                if (todoPanel && !todoPanel.classList.contains('hidden')) {
-                                    renderTodos();
-                                }
-                            } else {
-                                console.error('Todo not found:', { markCompleteId, markCompleteText });
-                            }
-                        }
-                        
                         const filtered = includeArchived ? todos : todos.filter(t => !t.completed);
                         
                         if (filtered.length === 0) {
-                            const msg = markedComplete 
-                                ? `Marked "${markedComplete}" as complete! ✅\n\nNo active todos remaining. All caught up!`
-                                : (includeArchived ? 'No todos found.' : 'No active todos. All caught up!');
                             toolResults.push({
                                 type: 'tool_result',
                                 tool_use_id: toolUse.id,
-                                content: msg
+                                content: includeArchived ? 'No todos found.' : 'No active todos. All caught up!'
                             });
                         } else {
                             const todoList = filtered.map(t => 
                                 `- [${t.completed ? 'x' : ' '}] ${t.text} (ID: ${t.id})${t.description ? ` - ${t.description}` : ''}${t.link ? ` - ${t.link}` : ''}`
                             ).join('\n');
                             
-                            const msg = markedComplete
-                                ? `Marked "${markedComplete}" as complete! ✅\n\nRemaining todos (${filtered.length} items):\n${todoList}`
-                                : `Todo list (${filtered.length} items):\n${todoList}`;
-                            
                             toolResults.push({
                                 type: 'tool_result',
                                 tool_use_id: toolUse.id,
-                                content: msg
+                                content: `Todo list (${filtered.length} items):\n${todoList}`
                             });
                         }
                     } catch (error) {
