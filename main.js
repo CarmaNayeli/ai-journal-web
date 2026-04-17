@@ -424,13 +424,13 @@ async function sendMessage() {
             },
             {
                 name: 'update_todo',
-                description: 'Update an existing todo item (text, description, link, or completion status).',
+                description: 'Update an existing todo item. Use this to mark todos as complete by setting completed=true, or to change the text, description, or link. You MUST call this tool to actually update a todo - just finding it with list_todos is not enough.',
                 input_schema: {
                     type: 'object',
                     properties: {
                         id: {
                             type: 'string',
-                            description: 'The ID of the todo item to update'
+                            description: 'The ID of the todo item to update (get this from list_todos)'
                         },
                         text: {
                             type: 'string',
@@ -446,7 +446,7 @@ async function sendMessage() {
                         },
                         completed: {
                             type: 'boolean',
-                            description: 'Whether the todo item is completed'
+                            description: 'Set to true to mark the todo as complete, false to mark as incomplete'
                         }
                     },
                     required: ['id']
