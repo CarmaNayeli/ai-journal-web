@@ -466,6 +466,10 @@ async function sendMessage() {
                         mark_complete_id: {
                             type: 'string',
                             description: 'Set this to a todo\'s ID (like "1776433766967") to mark it as complete. Example: if you see a todo with ID "1776433766967", call list_todos with mark_complete_id="1776433766967" to mark it complete.'
+                        },
+                        mark_complete_text: {
+                            type: 'string',
+                            description: 'Alternative to mark_complete_id: Set this to the exact text of a todo to mark it complete. Example: mark_complete_text="Test to do list!" will find and mark that todo complete.'
                         }
                     },
                     required: []
@@ -755,23 +759,31 @@ async function sendMessage() {
                         console.log('list_todos input:', toolUse.input);
                         const includeArchived = toolUse.input.include_archived || false;
                         const markCompleteId = toolUse.input.mark_complete_id;
+                        const markCompleteText = toolUse.input.mark_complete_text;
                         console.log('mark_complete_id:', markCompleteId);
+                        console.log('mark_complete_text:', markCompleteText);
                         todos = storage.get('todos', []);
                         console.log('All todos:', todos);
                         
                         // Mark todo as complete if requested
                         let markedComplete = null;
-                        if (markCompleteId) {
-                            const todo = todos.find(t => t.id === markCompleteId);
+                        if (markCompleteId || markCompleteText) {
+                            const todo = markCompleteId 
+                                ? todos.find(t => t.id === markCompleteId)
+                                : todos.find(t => t.text === markCompleteText);
+                            
                             if (todo) {
                                 todo.completed = true;
                                 storage.set('todos', todos);
                                 markedComplete = todo.text;
+                                console.log('Marked complete:', markedComplete);
                                 
                                 // Refresh UI if panel is open
                                 if (todoPanel && !todoPanel.classList.contains('hidden')) {
                                     renderTodos();
                                 }
+                            } else {
+                                console.error('Todo not found:', { markCompleteId, markCompleteText });
                             }
                         }
                         
