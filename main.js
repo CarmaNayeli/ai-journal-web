@@ -291,24 +291,67 @@ async function sendMessage() {
     });
     
     try {
+        // Define tools for the companion
+        const tools = [
+            {
+                name: 'save_note',
+                description: 'Save a note to context that will persist across conversations. Use this to remember important details about the user, their projects, goals, or anything you should reference in future chats.',
+                input_schema: {
+                    type: 'object',
+                    properties: {
+                        note: {
+                            type: 'string',
+                            description: 'The note to save to context'
+                        }
+                    },
+                    required: ['note']
+                }
+            }
+        ];
+        
         // Use proxy endpoint to avoid CORS issues
         const response = await axios.post('/api/chat', {
             apiKey: apiKey,
             system: buildSystemPrompt(),
-            messages: conversationHistory
+            messages: conversationHistory,
+            tools: tools
         });
         
-        const assistantMessage = response.data.content[0].text;
-        addMessage(assistantMessage, 'assistant');
+        const assistantContent = response.data.content;
+        
+        // Check if there are tool uses
+        const toolUses = assistantContent.filter(block => block.type === 'tool_use');
+        const textBlocks = assistantContent.filter(block => block.type === 'text');
+        
+        // Display text response
+        if (textBlocks.length > 0) {
+            const assistantMessage = textBlocks.map(b => b.text).join('\n');
+            addMessage(assistantMessage, 'assistant');
+        }
+        
+        // Handle tool uses
+        if (toolUses.length > 0) {
+            for (const toolUse of toolUses) {
+                if (toolUse.name === 'save_note') {
+                    const note = toolUse.input.note;
+                    const currentNotes = storage.get('contextNotes', '');
+                    const timestamp = new Date().toLocaleString();
+                    const newNote = `[${timestamp}] ${note}`;
+                    const updatedNotes = currentNotes ? `${currentNotes}\n${newNote}` : newNote;
+                    storage.set('contextNotes', updatedNotes);
+                    addMessage(`📝 Note saved to context: ${note}`, 'system');
+                }
+            }
+        }
         
         conversationHistory.push({
             role: 'assistant',
-            content: assistantMessage
+            content: assistantContent
         });
         
         // Save to journal if recording
-        if (journalRecording) {
-            saveToJournal(message, assistantMessage);
+        if (journalRecording && textBlocks.length > 0) {
+            saveToJournal(message, textBlocks.map(b => b.text).join('\n'));
         }
         
     } catch (error) {

@@ -27,7 +27,7 @@ export default async function handler(req) {
 
   try {
     const body = await req.json();
-    const { apiKey, messages, system } = body;
+    const { apiKey, messages, system, tools } = body;
 
     if (!apiKey) {
       return new Response(JSON.stringify({ error: 'API key is required' }), {
@@ -39,6 +39,18 @@ export default async function handler(req) {
       });
     }
 
+    const requestBody = {
+      model: 'claude-sonnet-4-6',
+      max_tokens: 8192,
+      system: system,
+      messages: messages,
+    };
+
+    // Add tools if provided
+    if (tools && tools.length > 0) {
+      requestBody.tools = tools;
+    }
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -46,12 +58,7 @@ export default async function handler(req) {
         'anthropic-version': '2023-06-01',
         'content-type': 'application/json',
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 8192,
-        system: system,
-        messages: messages,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     const data = await response.json();
