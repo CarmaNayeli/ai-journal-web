@@ -425,7 +425,7 @@ async function sendMessage() {
             },
             {
                 name: 'update_todo',
-                description: 'Update an existing todo item. Use this to mark todos as complete by setting completed=true, or to change the text, description, or link. You MUST call this tool to actually update a todo - just finding it with list_todos is not enough.',
+                description: 'Update an existing todo item. Use this to mark todos as complete (completed=true), archive them (archived=true), or change the text, description, or link. NEVER use remove_todo to archive - always use archived=true instead. You MUST call this tool to actually update a todo - just finding it with list_todos is not enough.',
                 input_schema: {
                     type: 'object',
                     properties: {
@@ -448,6 +448,10 @@ async function sendMessage() {
                         completed: {
                             type: 'boolean',
                             description: 'Set to true to mark the todo as complete, false to mark as incomplete'
+                        },
+                        archived: {
+                            type: 'boolean',
+                            description: 'Set to true to archive the todo, false to unarchive it. Use this instead of deleting when the user wants to archive.'
                         }
                     },
                     required: ['id']
@@ -688,7 +692,7 @@ async function sendMessage() {
                     
                 } else if (toolUse.name === 'update_todo') {
                     try {
-                        const { id, text, description, link, completed } = toolUse.input;
+                        const { id, text, description, link, completed, archived } = toolUse.input;
                         console.log('update_todo called with:', { id, text, description, link, completed });
                         todos = storage.get('todos', []);
                         console.log('Current todos:', todos);
@@ -702,6 +706,9 @@ async function sendMessage() {
                             if (completed !== undefined) {
                                 console.log('Setting completed to:', completed);
                                 todo.completed = completed;
+                            }
+                            if (archived !== undefined) {
+                                todo.archived = archived;
                             }
                             
                             console.log('Updated todo:', todo);
