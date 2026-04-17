@@ -1122,11 +1122,15 @@ addTodoBtn.addEventListener('click', () => {
 });
 
 // Event delegation for todo list
+console.log('Setting up todo list event listener on:', todoList);
 todoList.addEventListener('click', (e) => {
+    console.log('Todo list clicked!', e.target);
     const todoItem = e.target.closest('.todo-item');
+    console.log('Closest todo-item:', todoItem);
     if (!todoItem) return;
     
     const todoId = todoItem.dataset.todoId;
+    console.log('Todo ID:', todoId);
     
     if (e.target.classList.contains('todo-checkbox')) {
         console.log('Checkbox clicked for todo:', todoId);
