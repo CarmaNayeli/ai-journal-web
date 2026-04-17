@@ -1170,7 +1170,9 @@ voiceBtn.addEventListener('click', () => {
     voiceEnabled = !voiceEnabled;
     storage.set('voiceEnabled', voiceEnabled);
     updateVoiceBtn();
-    if (!voiceEnabled && currentAudio) {
+    if (voiceEnabled && !storage.get('elevenLabsApiKey', '')) {
+        addMessage(`🔊 Voice is on! To hear your companions speak, you'll need a free ElevenLabs API key:\n\n1. Go to **elevenlabs.io** and create a free account\n2. In your profile, go to **API Keys** and generate a key\n3. Paste it into ⚙️ **Settings** here\n\nVoice input (🎤) works right now without any key — that uses your browser's built-in speech recognition.`, 'system');
+    } else if (!voiceEnabled && currentAudio) {
         currentAudio.pause();
         currentAudio = null;
     }
