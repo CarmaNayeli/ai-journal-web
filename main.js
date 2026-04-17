@@ -29,6 +29,9 @@ const settingsPanel = document.getElementById('settingsPanel');
 const apiKeyInput = document.getElementById('apiKey');
 const saveSettingsBtn = document.getElementById('saveSettings');
 const closeSettingsBtn = document.getElementById('closeSettings');
+const elevenLabsKeyInput = document.getElementById('elevenLabsKeyInput');
+const voiceBtn = document.getElementById('voiceBtn');
+const micBtn = document.getElementById('micBtn');
 const todoBtn = document.getElementById('todoBtn');
 const todoPanel = document.getElementById('todoPanel');
 const closeTodoBtn = document.getElementById('closeTodo');
@@ -57,6 +60,71 @@ const attachedImagesDiv = document.getElementById('attachedImages');
 let conversationHistory = [];
 let sessionContext = '';
 let todos = storage.get('todos', []);
+
+// Voice state
+let voiceEnabled = storage.get('voiceEnabled', false);
+let voiceConfigs = {};
+let currentAudio = null;
+
+async function loadVoiceConfigs() {
+    try {
+        const res = await fetch('/companions/voices.json');
+        voiceConfigs = await res.json();
+    } catch (e) {
+        voiceConfigs = {};
+    }
+}
+loadVoiceConfigs();
+
+function stripMarkdown(text) {
+    return text
+        .replace(/\*\*(.+?)\*\*/gs, '$1')
+        .replace(/\*(.+?)\*/gs, '$1')
+        .replace(/#{1,6}\s+/g, '')
+        .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+        .replace(/`{1,3}[\s\S]*?`{1,3}/g, '')
+        .replace(/^\s*[-*+]\s+/gm, '')
+        .replace(/^\s*\d+\.\s+/gm, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+async function speakText(text) {
+    const elevenKey = storage.get('elevenLabsApiKey', '');
+    if (!elevenKey || !voiceEnabled || !currentCompanion) return;
+    const voiceConfig = voiceConfigs[currentCompanion.id];
+    if (!voiceConfig?.voiceId) return;
+
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+    }
+
+    try {
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceConfig.voiceId}`, {
+            method: 'POST',
+            headers: { 'xi-api-key': elevenKey, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: stripMarkdown(text),
+                model_id: 'eleven_multilingual_v2',
+                voice_settings: {
+                    stability: voiceConfig.stability ?? 0.5,
+                    similarity_boost: 0.75,
+                    style: voiceConfig.style ?? 0.0,
+                    speed: voiceConfig.speed ?? 1.0
+                }
+            })
+        });
+        if (!response.ok) return;
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        currentAudio = new Audio(url);
+        currentAudio.play();
+        currentAudio.onended = () => { URL.revokeObjectURL(url); currentAudio = null; };
+    } catch (e) {
+        console.error('ElevenLabs TTS error:', e);
+    }
+}
 
 // Migrate legacy flat contextNotes → notes_shared
 (function migrateContextNotes() {
@@ -902,6 +970,7 @@ async function sendMessage() {
         
         if (finalText) {
             addMessage(finalText, 'assistant');
+            speakText(finalText);
         }
         
         conversationHistory.push({
@@ -1071,6 +1140,7 @@ settingsBtn.addEventListener('click', () => {
     settingsPanel.classList.toggle('hidden');
     if (!settingsPanel.classList.contains('hidden')) {
         apiKeyInput.value = storage.get('anthropicApiKey', '');
+        elevenLabsKeyInput.value = storage.get('elevenLabsApiKey', '');
     }
 });
 
@@ -1082,8 +1152,72 @@ saveSettingsBtn.addEventListener('click', () => {
     const apiKey = apiKeyInput.value.trim();
     if (apiKey) {
         storage.set('anthropicApiKey', apiKey);
-        addMessage('API key saved successfully!', 'system');
-        settingsPanel.classList.add('hidden');
+    }
+    const elevenKey = elevenLabsKeyInput.value.trim();
+    storage.set('elevenLabsApiKey', elevenKey);
+    addMessage('Settings saved!', 'system');
+    settingsPanel.classList.add('hidden');
+});
+
+// Voice toggle
+function updateVoiceBtn() {
+    voiceBtn.textContent = voiceEnabled ? '🔊' : '🔇';
+    voiceBtn.title = voiceEnabled ? 'Voice on — click to mute' : 'Voice off — click to enable';
+}
+updateVoiceBtn();
+
+voiceBtn.addEventListener('click', () => {
+    voiceEnabled = !voiceEnabled;
+    storage.set('voiceEnabled', voiceEnabled);
+    updateVoiceBtn();
+    if (!voiceEnabled && currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+    }
+});
+
+// Mic / speech-to-text
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let isListening = false;
+
+if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+
+    recognition.onresult = (e) => {
+        const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+        messageInput.value = transcript;
+    };
+
+    recognition.onend = () => {
+        isListening = false;
+        micBtn.textContent = '🎤';
+        micBtn.classList.remove('listening');
+    };
+
+    recognition.onerror = () => {
+        isListening = false;
+        micBtn.textContent = '🎤';
+        micBtn.classList.remove('listening');
+    };
+} else {
+    micBtn.title = 'Speech recognition not supported in this browser';
+    micBtn.style.opacity = '0.4';
+    micBtn.style.cursor = 'not-allowed';
+}
+
+micBtn.addEventListener('click', () => {
+    if (!recognition) return;
+    if (isListening) {
+        recognition.stop();
+    } else {
+        if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+        recognition.start();
+        isListening = true;
+        micBtn.textContent = '🔴';
+        micBtn.classList.add('listening');
     }
 });
 

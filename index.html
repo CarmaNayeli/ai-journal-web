@@ -16,6 +16,7 @@
                 <button id="todoBtn" class="header-btn" title="Todo List">✅</button>
                 <button id="journalBtn" class="header-btn" title="Journal">📓</button>
                 <button id="journalToggleBtn" class="header-btn" title="Toggle Journal Recording">⏺️</button>
+                <button id="voiceBtn" class="header-btn" title="Enable Voice">🔇</button>
                 <button id="settingsBtn" class="header-btn" title="Settings">⚙️</button>
             </div>
         </div>
@@ -66,11 +67,21 @@
             <h3>Settings</h3>
             <label>Claude API Key:</label>
             <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
-            <button id="saveSettings">Save</button>
-            <button id="closeSettings">Cancel</button>
-            
+
             <hr style="margin: 20px 0; border: 1px solid #444;">
-            
+
+            <h4>🔊 Voice (Optional)</h4>
+            <p style="font-size: 12px; color: #999; margin-bottom: 10px;">Add an ElevenLabs API key to hear your companions speak. Toggle voice on/off with the 🔇 button in the header. Voice IDs are configured per companion in voices.json.</p>
+            <label>ElevenLabs API Key:</label>
+            <input type="password" id="elevenLabsKeyInput" placeholder="sk_...">
+
+            <div style="margin-top: 12px; display: flex; gap: 10px;">
+                <button id="saveSettings" style="flex: 1;">Save</button>
+                <button id="closeSettings" style="flex: 1;">Cancel</button>
+            </div>
+
+            <hr style="margin: 20px 0; border: 1px solid #444;">
+
             <h4>Data Backup</h4>
             <p style="font-size: 12px; color: #999; margin-bottom: 10px;">Export your data to backup journal entries, todos, and settings. Import to restore.</p>
             <div style="display: flex; gap: 10px;">
@@ -146,6 +157,7 @@
         <div class="input-container">
             <button id="promptsBtn" class="prompts-btn hidden" title="Journal Prompts">💭</button>
             <button id="attachBtn" class="attach-btn" title="Attach Image">📎</button>
+            <button id="micBtn" class="mic-btn" title="Speak your message">🎤</button>
             <input type="file" id="imageInput" accept="image/*" style="display: none;" multiple>
             <textarea id="messageInput" placeholder="Share what's in your heart..." rows="4"></textarea>
             <button id="sendBtn">Send</button>
