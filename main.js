@@ -856,18 +856,18 @@ function renderTodos() {
     todoList.innerHTML = '';
     const filteredTodos = showArchive ? todos : todos.filter(t => !t.archived);
     
-    filteredTodos.forEach((todo, index) => {
+    filteredTodos.forEach((todo) => {
         const todoItem = document.createElement('div');
         todoItem.className = `todo-item ${todo.completed ? 'completed' : ''} ${todo.archived ? 'archived' : ''}`;
         
         todoItem.innerHTML = `
-            <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="window.toggleTodo(${index})">
+            <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="window.toggleTodo('${todo.id}')">
             <span>${todo.text}</span>
             <div class="todo-actions">
-                <button onclick="window.archiveTodo(${index})" title="${todo.archived ? 'Unarchive' : 'Archive'}">
+                <button onclick="window.archiveTodo('${todo.id}')" title="${todo.archived ? 'Unarchive' : 'Archive'}">
                     ${todo.archived ? '📤' : '📦'}
                 </button>
-                <button onclick="window.deleteTodo(${index})" title="Delete">🗑️</button>
+                <button onclick="window.deleteTodo('${todo.id}')" title="Delete">🗑️</button>
             </div>
         `;
         
@@ -875,22 +875,31 @@ function renderTodos() {
     });
 }
 
-window.toggleTodo = function(index) {
-    todos[index].completed = !todos[index].completed;
-    storage.set('todos', todos);
-    renderTodos();
+window.toggleTodo = function(id) {
+    const todo = todos.find(t => t.id === id);
+    if (todo) {
+        todo.completed = !todo.completed;
+        storage.set('todos', todos);
+        renderTodos();
+    }
 };
 
-window.archiveTodo = function(index) {
-    todos[index].archived = !todos[index].archived;
-    storage.set('todos', todos);
-    renderTodos();
+window.archiveTodo = function(id) {
+    const todo = todos.find(t => t.id === id);
+    if (todo) {
+        todo.archived = !todo.archived;
+        storage.set('todos', todos);
+        renderTodos();
+    }
 };
 
-window.deleteTodo = function(index) {
-    todos.splice(index, 1);
-    storage.set('todos', todos);
-    renderTodos();
+window.deleteTodo = function(id) {
+    const index = todos.findIndex(t => t.id === id);
+    if (index !== -1) {
+        todos.splice(index, 1);
+        storage.set('todos', todos);
+        renderTodos();
+    }
 };
 
 // Event listeners
