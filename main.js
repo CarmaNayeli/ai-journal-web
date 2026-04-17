@@ -766,7 +766,7 @@ async function sendMessage() {
                             toolResults.push({
                                 type: 'tool_result',
                                 tool_use_id: toolUse.id,
-                                content: `Todo list (${filtered.length} items):\n${todoList}\n\nTo update a todo, use the update_todo tool with the ID shown above.`
+                                content: `Todo list (${filtered.length} items):\n${todoList}\n\n⚠️ IMPORTANT: To mark a todo as complete, you MUST call the update_todo tool with the todo's ID and completed=true. Simply listing the todos does not update them. Call update_todo now if you want to change any todo's status.`
                             });
                         }
                     } catch (error) {
