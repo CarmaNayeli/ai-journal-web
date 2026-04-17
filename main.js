@@ -57,6 +57,16 @@ const attachedImagesDiv = document.getElementById('attachedImages');
 let conversationHistory = [];
 let sessionContext = '';
 let todos = storage.get('todos', []);
+
+// Migrate legacy flat contextNotes → notes_shared
+(function migrateContextNotes() {
+    const legacy = storage.get('contextNotes', null);
+    if (legacy !== null) {
+        const existing = storage.get('notes_shared', '');
+        storage.set('notes_shared', existing ? `${existing}\n${legacy}` : legacy);
+        storage.set('contextNotes', null);
+    }
+})();
 let showArchive = false;
 let journalRecording = false;
 let currentCompanion = null;
@@ -267,20 +277,35 @@ function buildSystemPrompt() {
     blocks.push({
         type: 'text',
         text: `\n\nTool Usage Guidelines:
-- Use the save_note tool regularly to remember important details about the user (their projects, goals, preferences, important dates, etc.)
-- Save notes when you learn something new about the user that would be helpful to remember in future conversations
-- Update your context notes as the conversation evolves to maintain accurate, up-to-date information
+- Use the save_note tool regularly to remember important details about the user
+- Use scope="shared" for identity info all companions should know (name, preferences, links, major projects)
+- Use scope="companion" (default) for notes specific to your domain, relationship, and conversations with the user
+- Save notes when you learn something new that would be helpful to remember in future conversations
 - Use todos to help the user track tasks and action items
 - Use web search and URL reading when the user needs current information or references external content
 - IMPORTANT: When managing todos, you can call multiple tools in the same response. For example, to mark a todo complete: first call list_todos to get the ID, then immediately call update_todo with that ID and completed=true. Don't wait for user confirmation between tool calls.`
     });
     
-    // Block 3: Context notes (if any)
-    const contextNotes = storage.get('contextNotes', '');
-    if (contextNotes) {
+    // Block 3: Shared notes (visible to all companions)
+    const sharedNotes = storage.get('notes_shared', '');
+    const companionNotes = storage.get(`notes_${currentCompanion?.id || 'unknown'}`, '');
+    if (sharedNotes || companionNotes) {
+        let notesText = '';
+        if (sharedNotes) notesText += `\n\nShared Notes (known by all companions):\n${sharedNotes}`;
+        if (companionNotes) notesText += `\n\nYour Notes (specific to you as ${currentCompanion?.name || 'this companion'}):\n${companionNotes}`;
+
+        // Cross-companion awareness: list other companions that have notes, without exposing content
+        const companions = allCompanions || [];
+        const othersWithNotes = companions
+            .filter(c => c.id !== currentCompanion?.id && storage.get(`notes_${c.id}`, ''))
+            .map(c => c.name);
+        if (othersWithNotes.length > 0) {
+            notesText += `\n\n(Note: ${othersWithNotes.join(', ')} also ${othersWithNotes.length === 1 ? 'has' : 'have'} companion-specific notes you don't have direct access to.)`;
+        }
+
         blocks.push({
             type: 'text',
-            text: `\n\nContext Notes (reference these when relevant):\n${contextNotes}`,
+            text: notesText,
             cache_control: { type: 'ephemeral' }
         });
     }
@@ -347,13 +372,18 @@ async function sendMessage() {
         const tools = [
             {
                 name: 'save_note',
-                description: 'Save a note to context that will persist across conversations. Use this to remember important details about the user, their projects, goals, or anything you should reference in future chats.',
+                description: 'Save a note that will persist across conversations. Use scope="shared" for identity info, preferences, or facts all companions should know (e.g. name, links, ongoing projects). Use scope="companion" (default) for notes specific to your relationship and domain with this user.',
                 input_schema: {
                     type: 'object',
                     properties: {
                         note: {
                             type: 'string',
-                            description: 'The note to save to context'
+                            description: 'The note to save'
+                        },
+                        scope: {
+                            type: 'string',
+                            enum: ['shared', 'companion'],
+                            description: 'Where to save the note. "shared" = visible to all companions. "companion" = only visible to you (default).'
                         }
                     },
                     required: ['note']
@@ -509,12 +539,15 @@ async function sendMessage() {
                 console.log('Processing tool:', toolUse.name, 'with ID:', toolUse.id);
                 if (toolUse.name === 'save_note') {
                     const note = toolUse.input.note;
-                    const currentNotes = storage.get('contextNotes', '');
+                    const scope = toolUse.input.scope || 'companion';
+                    const storageKey = scope === 'shared' ? 'notes_shared' : `notes_${currentCompanion?.id || 'unknown'}`;
+                    const currentNotes = storage.get(storageKey, '');
                     const timestamp = new Date().toLocaleString();
                     const newNote = `[${timestamp}] ${note}`;
                     const updatedNotes = currentNotes ? `${currentNotes}\n${newNote}` : newNote;
-                    storage.set('contextNotes', updatedNotes);
-                    addMessage(`📝 Note saved to context: ${note}`, 'system');
+                    storage.set(storageKey, updatedNotes);
+                    const scopeLabel = scope === 'shared' ? 'shared context' : 'your notes';
+                    addMessage(`📝 Note saved to ${scopeLabel}: ${note}`, 'system');
                     
                     toolResults.push({
                         type: 'tool_result',
@@ -1020,13 +1053,19 @@ const importDataBtn = document.getElementById('importDataBtn');
 const importFileInput = document.getElementById('importFileInput');
 
 exportDataBtn.addEventListener('click', () => {
+    const companionNotes = {};
+    (allCompanions || []).forEach(c => {
+        const n = storage.get(`notes_${c.id}`, '');
+        if (n) companionNotes[c.id] = n;
+    });
     const data = {
-        version: '1.0',
+        version: '2.0',
         exportDate: new Date().toISOString(),
         currentCompanion: storage.get('currentCompanion', 'rowan'),
         journal: storage.get('journal', []),
         todos: storage.get('todos', []),
-        contextNotes: storage.get('contextNotes', ''),
+        notes_shared: storage.get('notes_shared', ''),
+        companionNotes,
         hasSeenWelcome: storage.get('hasSeenWelcome', false),
         hasSeenApiSetup: storage.get('hasSeenApiSetup', false)
         // Note: API key is NOT exported for security
@@ -1071,9 +1110,17 @@ importFileInput.addEventListener('change', async (e) => {
         if (data.currentCompanion) storage.set('currentCompanion', data.currentCompanion);
         if (data.journal) storage.set('journal', data.journal);
         if (data.todos) storage.set('todos', data.todos);
-        if (data.contextNotes !== undefined) storage.set('contextNotes', data.contextNotes);
         if (data.hasSeenWelcome !== undefined) storage.set('hasSeenWelcome', data.hasSeenWelcome);
         if (data.hasSeenApiSetup !== undefined) storage.set('hasSeenApiSetup', data.hasSeenApiSetup);
+        // v2.0 format
+        if (data.notes_shared !== undefined) storage.set('notes_shared', data.notes_shared);
+        if (data.companionNotes) {
+            Object.entries(data.companionNotes).forEach(([id, notes]) => storage.set(`notes_${id}`, notes));
+        }
+        // v1.0 legacy format — migrate to shared
+        if (data.contextNotes && !data.notes_shared) {
+            storage.set('notes_shared', data.contextNotes);
+        }
         
         addMessage(`✅ Data imported successfully! ${data.journal?.length || 0} journal entries and ${data.todos?.length || 0} todos restored.`, 'system');
         
@@ -1090,15 +1137,20 @@ importFileInput.addEventListener('change', async (e) => {
     importFileInput.value = '';
 });
 
-const contextNotesTextarea = document.getElementById('contextNotesTextarea');
+const sharedNotesTextarea = document.getElementById('sharedNotesTextarea');
+const companionNotesTextarea = document.getElementById('companionNotesTextarea');
+const companionNotesLabel = document.getElementById('companionNotesLabel');
 const saveContextBtn = document.getElementById('saveContextBtn');
 const clearContextBtn = document.getElementById('clearContextBtn');
 
 contextBtn.addEventListener('click', () => {
     contextPanel.classList.toggle('hidden');
     if (!contextPanel.classList.contains('hidden')) {
-        // Load current context notes
-        contextNotesTextarea.value = storage.get('contextNotes', '');
+        sharedNotesTextarea.value = storage.get('notes_shared', '');
+        companionNotesTextarea.value = storage.get(`notes_${currentCompanion?.id || 'unknown'}`, '');
+        if (companionNotesLabel && currentCompanion) {
+            companionNotesLabel.textContent = `${currentCompanion.name}'s Notes`;
+        }
     }
 });
 
@@ -1107,15 +1159,17 @@ closeContextBtn.addEventListener('click', () => {
 });
 
 saveContextBtn.addEventListener('click', () => {
-    const notes = contextNotesTextarea.value.trim();
-    storage.set('contextNotes', notes);
-    addMessage('✅ Context notes saved! Your companion will reference these in future conversations.', 'system');
+    storage.set('notes_shared', sharedNotesTextarea.value.trim());
+    storage.set(`notes_${currentCompanion?.id || 'unknown'}`, companionNotesTextarea.value.trim());
+    addMessage('✅ Context notes saved!', 'system');
 });
 
 clearContextBtn.addEventListener('click', () => {
-    if (confirm('Are you sure you want to clear all context notes?')) {
-        storage.set('contextNotes', '');
-        contextNotesTextarea.value = '';
+    if (confirm('Clear all context notes (shared and companion-specific)?')) {
+        storage.set('notes_shared', '');
+        storage.set(`notes_${currentCompanion?.id || 'unknown'}`, '');
+        sharedNotesTextarea.value = '';
+        companionNotesTextarea.value = '';
         addMessage('🗑️ Context notes cleared.', 'system');
     }
 });
