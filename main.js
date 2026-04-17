@@ -752,9 +752,12 @@ async function sendMessage() {
                     
                 } else if (toolUse.name === 'list_todos') {
                     try {
+                        console.log('list_todos input:', toolUse.input);
                         const includeArchived = toolUse.input.include_archived || false;
                         const markCompleteId = toolUse.input.mark_complete_id;
+                        console.log('mark_complete_id:', markCompleteId);
                         todos = storage.get('todos', []);
+                        console.log('All todos:', todos);
                         
                         // Mark todo as complete if requested
                         let markedComplete = null;
