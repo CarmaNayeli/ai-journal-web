@@ -1210,21 +1210,19 @@ voiceBtn.addEventListener('click', () => {
 // Mic / speech-to-text
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
-let isListening = false;  // manual mic button active
-let wakeWordActive = false; // background wake word polling
+let isListening = false;
+let wakeWordActive = false;
 let isComposing = false;
-let composingStartIndex = 0;
-let lastCheckedFinalIndex = 0;
+let accumulatedText = '';
 
-// Known misrecognition aliases: companion name → extra words the API might hear instead
 const WAKE_ALIASES = {
-    'bloom': ['blue', 'blew', 'blume'],
-    'grove':  ['grow', 'groves'],
-    'seren':  ['siren', 'serene'],
-    'still':  ['steel', 'style'],
-    'prism':  ['prison'],
-    'jest':   ['just', 'chest'],
-    'veil':   ['vale', 'bail', 'fail'],
+    'bloom':    ['blue', 'blew', 'blume'],
+    'grove':    ['grow', 'groves'],
+    'seren':    ['siren', 'serene'],
+    'still':    ['steel', 'style'],
+    'prism':    ['prison'],
+    'jest':     ['just', 'chest'],
+    'veil':     ['vale', 'bail', 'fail'],
 };
 
 function matchesWakeWord(transcript, name) {
@@ -1232,16 +1230,10 @@ function matchesWakeWord(transcript, name) {
     return candidates.some(n => transcript.includes(`hey ${n}`));
 }
 
-function resetRecognitionIndices() {
-    composingStartIndex = 0;
-    lastCheckedFinalIndex = 0;
-}
-
-function startComposing(resultIndex = 0) {
+function startComposing() {
     isComposing = true;
     isListening = true;
-    composingStartIndex = resultIndex;
-    lastCheckedFinalIndex = resultIndex;
+    accumulatedText = '';
     micBtn.textContent = '🔴';
     micBtn.classList.add('listening');
     messageInput.value = '';
@@ -1252,6 +1244,7 @@ function startComposing(resultIndex = 0) {
 function stopComposing() {
     isComposing = false;
     isListening = false;
+    accumulatedText = '';
     micBtn.textContent = '🎤';
     micBtn.classList.remove('listening');
 }
@@ -1259,7 +1252,6 @@ function stopComposing() {
 function startWakeWordListener() {
     if (!recognition) return;
     wakeWordActive = true;
-    resetRecognitionIndices();
     try { recognition.start(); } catch (e) {}
 }
 
@@ -1271,61 +1263,51 @@ function stopWakeWordListener() {
 
 if (SpeechRecognition) {
     recognition = new SpeechRecognition();
-    recognition.continuous = true;
+    recognition.continuous = false;
     recognition.interimResults = true;
 
     recognition.onresult = (e) => {
         const name = (currentCompanion?.name || '').toLowerCase();
+        const results = Array.from(e.results);
+        const interim = results.map(r => r[0].transcript).join('');
+        const finalChunk = results.filter(r => r.isFinal).map(r => r[0].transcript).join('').trim();
+        const finalLower = finalChunk.toLowerCase();
 
-        // Build display text only from results since composing started
         if (isComposing || isListening) {
-            let text = '';
-            for (let i = composingStartIndex; i < e.results.length; i++) {
-                text += e.results[i][0].transcript;
-            }
-            messageInput.value = text;
-        }
+            messageInput.value = accumulatedText + (accumulatedText ? ' ' : '') + interim;
 
-        // Process only NEW final results
-        for (let i = lastCheckedFinalIndex; i < e.results.length; i++) {
-            if (!e.results[i].isFinal) continue;
-            lastCheckedFinalIndex = i + 1;
-            const transcript = e.results[i][0].transcript.trim().toLowerCase();
-
-            if (isComposing || isListening) {
-                if (transcript.includes('send message')) {
-                    messageInput.value = messageInput.value.replace(/send\s+message/gi, '').trim();
+            if (finalChunk) {
+                if (finalLower.includes('send message')) {
+                    accumulatedText = (accumulatedText + ' ' + finalChunk).replace(/send\s+message/gi, '').trim();
+                    messageInput.value = accumulatedText;
                     stopComposing();
                     sendMessage();
-                    return;
-                } else if (matchesWakeWord(transcript, name)) {
-                    messageInput.value = '';
+                } else if (matchesWakeWord(finalLower, name)) {
                     stopComposing();
-                    return;
+                } else {
+                    accumulatedText = (accumulatedText + ' ' + finalChunk).trim();
+                    messageInput.value = accumulatedText;
                 }
-            } else if (wakeWordActive && matchesWakeWord(transcript, name)) {
-                startComposing(i + 1);
-                return;
             }
+        } else if (wakeWordActive && finalChunk && matchesWakeWord(finalLower, name)) {
+            startComposing();
         }
     };
 
     recognition.onend = () => {
-        if (wakeWordActive) {
-            resetRecognitionIndices();
+        if (isComposing || isListening) {
+            setTimeout(() => { try { recognition.start(); } catch (e) {} }, 100);
+        } else if (wakeWordActive) {
             setTimeout(() => { try { recognition.start(); } catch (e) {} }, 150);
-        } else {
-            stopComposing();
         }
     };
 
     recognition.onerror = (e) => {
         if (e.error === 'aborted') return;
-        if (wakeWordActive) {
-            resetRecognitionIndices();
+        if (isComposing || isListening) {
+            setTimeout(() => { try { recognition.start(); } catch (err) {} }, 300);
+        } else if (wakeWordActive) {
             setTimeout(() => { try { recognition.start(); } catch (err) {} }, 500);
-        } else {
-            stopComposing();
         }
     };
 
@@ -1339,10 +1321,9 @@ micBtn.addEventListener('click', () => {
     if (!recognition) return;
     if (isComposing || isListening) {
         stopComposing();
-        if (wakeWordActive) { resetRecognitionIndices(); setTimeout(() => { try { recognition.start(); } catch (e) {} }, 150); }
     } else {
         startComposing();
-        try { recognition.start(); } catch (e) {}
+        if (!wakeWordActive) try { recognition.start(); } catch (e) {}
     }
 });
 
