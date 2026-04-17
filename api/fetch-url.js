@@ -1,4 +1,5 @@
-import playwright from 'playwright-aws-lambda';
+import { chromium } from 'playwright-core';
+import chromiumMin from '@sparticuz/chromium-min';
 
 export const config = {
   runtime: 'nodejs',
@@ -68,8 +69,16 @@ export default async function handler(req) {
       try {
         console.log('Launching Playwright for URL:', url);
         
-        // Launch browser using playwright-aws-lambda
-        browser = await playwright.launchChromium();
+        // Get Chromium executable path
+        const executablePath = await chromiumMin.executablePath();
+        console.log('Chromium path:', executablePath);
+        
+        // Launch browser using playwright-core with chromium-min
+        browser = await chromium.launch({
+          executablePath,
+          headless: true,
+          args: chromiumMin.args,
+        });
         console.log('Browser launched successfully');
 
         const context = await browser.newContext({
