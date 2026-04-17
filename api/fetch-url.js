@@ -3,7 +3,8 @@ import chromium from '@sparticuz/chromium';
 
 export const config = {
   runtime: 'nodejs',
-  maxDuration: 30,
+  maxDuration: 60,
+  memory: 3008,
 };
 
 export default async function handler(req) {
@@ -30,8 +31,9 @@ export default async function handler(req) {
   }
 
   try {
-    const { searchParams } = new URL(req.url);
-    const url = searchParams.get('url');
+    // Parse URL properly - req.url might be relative or absolute
+    const urlObj = new URL(req.url, `https://${req.headers.get('host') || 'localhost'}`);
+    const url = urlObj.searchParams.get('url');
 
     if (!url) {
       return new Response(JSON.stringify({ error: 'URL parameter is required' }), {
@@ -57,7 +59,7 @@ export default async function handler(req) {
     }
 
     // Check if we should use Puppeteer (for JS-heavy sites)
-    const useJs = searchParams.get('js') === 'true';
+    const useJs = urlObj.searchParams.get('js') === 'true';
     let text;
 
     if (useJs) {
@@ -102,13 +104,13 @@ export default async function handler(req) {
         console.log('Navigating to URL...');
         // Navigate and wait for network to be idle
         await page.goto(url, { 
-          waitUntil: ['load', 'networkidle0'],
-          timeout: 25000 
+          waitUntil: ['load', 'domcontentloaded'],
+          timeout: 45000 
         });
         
         console.log('Page loaded, waiting for dynamic content...');
         // Wait a bit more for dynamic content
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
         console.log('Getting page content...');
         // Get the rendered HTML
