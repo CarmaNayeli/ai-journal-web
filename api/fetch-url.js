@@ -1,5 +1,4 @@
-import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import playwright from 'playwright-aws-lambda';
 
 export const config = {
   runtime: 'nodejs',
@@ -64,65 +63,35 @@ export default async function handler(req) {
     let text;
 
     if (useJs) {
-      // Use Puppeteer to render JavaScript
+      // Use Playwright to render JavaScript
       let browser = null;
       try {
-        console.log('Launching Puppeteer for URL:', url);
+        console.log('Launching Playwright for URL:', url);
         
-        // Set up Chromium flags for serverless
-        const chromiumArgs = [
-          ...chromium.args,
-          '--disable-blink-features=AutomationControlled',
-          '--disable-features=IsolateOrigins,site-per-process',
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--single-process',
-          '--no-zygote'
-        ];
-        
-        const executablePath = await chromium.executablePath();
-        console.log('Chromium executable path:', executablePath);
-        
-        browser = await puppeteer.launch({
-          args: chromiumArgs,
-          defaultViewport: chromium.defaultViewport,
-          executablePath: executablePath,
-          headless: chromium.headless,
-          ignoreHTTPSErrors: true,
-        });
-        
+        // Launch browser using playwright-aws-lambda
+        browser = await playwright.launchChromium();
         console.log('Browser launched successfully');
 
-        const page = await browser.newPage();
-        
-        // Set realistic user agent
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
-        
-        // Set extra headers to look more like a real browser
-        await page.setExtraHTTPHeaders({
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        const context = await browser.newContext({
+          userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+          extraHTTPHeaders: {
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          },
         });
-        
-        // Hide webdriver property
-        await page.evaluateOnNewDocument(() => {
-          Object.defineProperty(navigator, 'webdriver', {
-            get: () => false,
-          });
-        });
+
+        const page = await context.newPage();
         
         console.log('Navigating to URL...');
         // Navigate and wait for network to be idle
         await page.goto(url, { 
-          waitUntil: ['load', 'domcontentloaded'],
+          waitUntil: 'domcontentloaded',
           timeout: 45000 
         });
         
         console.log('Page loaded, waiting for dynamic content...');
         // Wait a bit more for dynamic content
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await page.waitForTimeout(2000);
         
         console.log('Getting page content...');
         // Get the rendered HTML
@@ -138,8 +107,8 @@ export default async function handler(req) {
             console.error('Error closing browser:', e);
           }
         }
-        console.error('Puppeteer error details:', error);
-        throw new Error(`Puppeteer error: ${error.message}`);
+        console.error('Playwright error details:', error);
+        throw new Error(`Playwright error: ${error.message}`);
       }
     } else {
       // Simple fetch for static sites
