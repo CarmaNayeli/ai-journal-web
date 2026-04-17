@@ -506,11 +506,23 @@ async function sendMessage() {
                             content: `Error fetching URL: ${error.message}. The URL may be blocked or inaccessible.`
                         });
                     }
+                } else {
+                    // Unknown tool - still need to provide a result
+                    toolResults.push({
+                        type: 'tool_result',
+                        tool_use_id: toolUse.id,
+                        content: `Unknown tool: ${toolUse.name}`
+                    });
                 }
             }
             
-            // If there were tool uses, send tool results back to continue the conversation
-            if (toolResults.length > 0) {
+            // Verify we have a result for every tool use
+            if (toolResults.length !== toolUses.length) {
+                console.error('Mismatch: tool uses vs tool results', { toolUses: toolUses.length, toolResults: toolResults.length });
+            }
+            
+            // If there were tool uses, we MUST send tool results back (Claude requires this)
+            if (toolUses.length > 0 && toolResults.length > 0) {
                 conversationHistory.push({
                     role: 'user',
                     content: toolResults
