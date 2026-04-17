@@ -82,10 +82,19 @@
 
         <div id="contextPanel" class="context-panel hidden">
             <div class="panel-header">
-                <h3>Session Context</h3>
+                <h3>Context Notes</h3>
                 <button id="closeContext" class="close-btn">×</button>
             </div>
-            <div id="contextContent" class="context-content"></div>
+            <p style="color: #999; font-size: 12px; padding: 0 15px; margin-bottom: 10px;">
+                Add notes, background info, or context that your companion should remember during conversations.
+            </p>
+            <textarea id="contextNotesTextarea" 
+                      placeholder="Add context notes here... (e.g., project details, personal info, goals, etc.)"
+                      style="width: calc(100% - 30px); height: 300px; margin: 0 15px; padding: 10px; background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical;"></textarea>
+            <div style="padding: 15px; display: flex; gap: 10px;">
+                <button id="saveContextBtn" style="flex: 1; background: #4CAF50; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer;">💾 Save Context</button>
+                <button id="clearContextBtn" style="flex: 1; background: #d32f2f; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer;">🗑️ Clear Context</button>
+            </div>
         </div>
 
         <div id="todoPanel" class="todo-panel hidden">

@@ -247,14 +247,29 @@ function addMessage(content, role) {
 }
 
 function buildSystemPrompt() {
+    const blocks = [];
+    
+    // Block 1: Companion personality
     const companionPrompt = currentCompanion?.personality?.systemPrompt || 
         `You are a supportive journaling companion. Help the user reflect on their thoughts and feelings through gentle questions and active listening.`;
     
-    return [{
+    blocks.push({
         type: 'text',
         text: companionPrompt,
         cache_control: { type: 'ephemeral' }
-    }];
+    });
+    
+    // Block 2: Context notes (if any)
+    const contextNotes = storage.get('contextNotes', '');
+    if (contextNotes) {
+        blocks.push({
+            type: 'text',
+            text: `\n\nContext Notes (reference these when relevant):\n${contextNotes}`,
+            cache_control: { type: 'ephemeral' }
+        });
+    }
+    
+    return blocks;
 }
 
 async function sendMessage() {
@@ -422,6 +437,7 @@ exportDataBtn.addEventListener('click', () => {
         currentCompanion: storage.get('currentCompanion', 'rowan'),
         journal: storage.get('journal', []),
         todos: storage.get('todos', []),
+        contextNotes: storage.get('contextNotes', ''),
         hasSeenWelcome: storage.get('hasSeenWelcome', false),
         hasSeenApiSetup: storage.get('hasSeenApiSetup', false)
         // Note: API key is NOT exported for security
@@ -466,6 +482,7 @@ importFileInput.addEventListener('change', async (e) => {
         if (data.currentCompanion) storage.set('currentCompanion', data.currentCompanion);
         if (data.journal) storage.set('journal', data.journal);
         if (data.todos) storage.set('todos', data.todos);
+        if (data.contextNotes !== undefined) storage.set('contextNotes', data.contextNotes);
         if (data.hasSeenWelcome !== undefined) storage.set('hasSeenWelcome', data.hasSeenWelcome);
         if (data.hasSeenApiSetup !== undefined) storage.set('hasSeenApiSetup', data.hasSeenApiSetup);
         
@@ -484,15 +501,34 @@ importFileInput.addEventListener('change', async (e) => {
     importFileInput.value = '';
 });
 
+const contextNotesTextarea = document.getElementById('contextNotesTextarea');
+const saveContextBtn = document.getElementById('saveContextBtn');
+const clearContextBtn = document.getElementById('clearContextBtn');
+
 contextBtn.addEventListener('click', () => {
     contextPanel.classList.toggle('hidden');
     if (!contextPanel.classList.contains('hidden')) {
-        contextContent.textContent = sessionContext || 'No session context yet.';
+        // Load current context notes
+        contextNotesTextarea.value = storage.get('contextNotes', '');
     }
 });
 
 closeContextBtn.addEventListener('click', () => {
     contextPanel.classList.add('hidden');
+});
+
+saveContextBtn.addEventListener('click', () => {
+    const notes = contextNotesTextarea.value.trim();
+    storage.set('contextNotes', notes);
+    addMessage('✅ Context notes saved! Your companion will reference these in future conversations.', 'system');
+});
+
+clearContextBtn.addEventListener('click', () => {
+    if (confirm('Are you sure you want to clear all context notes?')) {
+        storage.set('contextNotes', '');
+        contextNotesTextarea.value = '';
+        addMessage('🗑️ Context notes cleared.', 'system');
+    }
 });
 
 todoBtn.addEventListener('click', () => {
