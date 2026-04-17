@@ -1174,18 +1174,52 @@ voiceBtn.addEventListener('click', () => {
     voiceEnabled = !voiceEnabled;
     storage.set('voiceEnabled', voiceEnabled);
     updateVoiceBtn();
-    if (voiceEnabled && !storage.get('elevenLabsApiKey', '')) {
-        addMessage(`🔊 Voice is on! To hear your companions speak, you'll need a free ElevenLabs API key:\n\n1. Go to **elevenlabs.io** and create a free account\n2. In your profile, go to **API Keys** and generate a key\n3. Paste it into ⚙️ **Settings** here\n\nVoice input (🎤) works right now without any key — that uses your browser's built-in speech recognition.\n\n\*Voice input requires Chrome or Edge and won't appear on other browsers.`, 'system');
-    } else if (!voiceEnabled && currentAudio) {
-        currentAudio.pause();
-        currentAudio = null;
+    if (voiceEnabled) {
+        startWakeWordListener();
+        if (!storage.get('elevenLabsApiKey', '')) {
+            addMessage(`🔊 Voice is on! To hear your companions speak, you'll need a free ElevenLabs API key:\n\n1. Go to **elevenlabs.io** and create a free account\n2. In your profile, go to **API Keys** and generate a key\n3. Paste it into ⚙️ **Settings** here\n\nVoice input (🎤) works right now without any key — that uses your browser's built-in speech recognition.\n\n\\*Voice input requires Chrome or Edge and won't appear on other browsers.`, 'system');
+        }
+    } else {
+        if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+        stopWakeWordListener();
     }
 });
 
 // Mic / speech-to-text
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
-let isListening = false;
+let isListening = false;  // manual mic button active
+let wakeWordActive = false; // background wake word polling
+let isComposing = false;  // user said "hey [name]", now dictating
+
+function startComposing() {
+    isComposing = true;
+    isListening = true;
+    micBtn.textContent = '🔴';
+    micBtn.classList.add('listening');
+    messageInput.value = '';
+    messageInput.focus();
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+}
+
+function stopComposing() {
+    isComposing = false;
+    isListening = false;
+    micBtn.textContent = '🎤';
+    micBtn.classList.remove('listening');
+}
+
+function startWakeWordListener() {
+    if (!recognition) return;
+    wakeWordActive = true;
+    try { recognition.start(); } catch (e) {}
+}
+
+function stopWakeWordListener() {
+    wakeWordActive = false;
+    stopComposing();
+    try { recognition.abort(); } catch (e) {}
+}
 
 if (SpeechRecognition) {
     recognition = new SpeechRecognition();
@@ -1193,35 +1227,69 @@ if (SpeechRecognition) {
     recognition.interimResults = true;
 
     recognition.onresult = (e) => {
-        const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
-        messageInput.value = transcript;
+        const results = Array.from(e.results);
+        const interimText = results.map(r => r[0].transcript).join('');
+        const finalText = results.filter(r => r.isFinal).map(r => r[0].transcript).join('').trim().toLowerCase();
+        const wakeName = `hey ${(currentCompanion?.name || '').toLowerCase()}`;
+
+        if (isComposing || isListening) {
+            messageInput.value = interimText;
+
+            if (finalText) {
+                if (finalText.includes('send message')) {
+                    messageInput.value = messageInput.value.replace(/send\s+message/gi, '').trim();
+                    stopComposing();
+                    sendMessage();
+                } else if (finalText.includes(wakeName)) {
+                    messageInput.value = '';
+                    stopComposing();
+                }
+            }
+        } else if (wakeWordActive && finalText.includes(wakeName)) {
+            startComposing();
+        }
     };
 
     recognition.onend = () => {
-        isListening = false;
-        micBtn.textContent = '🎤';
-        micBtn.classList.remove('listening');
+        if (isComposing || isListening) {
+            try { recognition.start(); } catch (e) {}
+        } else if (wakeWordActive) {
+            setTimeout(() => {
+                if (wakeWordActive && !isComposing && !isListening) {
+                    try { recognition.start(); } catch (e) {}
+                }
+            }, 150);
+        } else {
+            micBtn.textContent = '🎤';
+            micBtn.classList.remove('listening');
+        }
     };
 
-    recognition.onerror = () => {
-        isListening = false;
-        micBtn.textContent = '🎤';
-        micBtn.classList.remove('listening');
+    recognition.onerror = (e) => {
+        if (e.error === 'aborted' || e.error === 'no-speech') {
+            if (wakeWordActive && !isComposing && !isListening) {
+                setTimeout(() => { try { recognition.start(); } catch (err) {} }, 300);
+            }
+            return;
+        }
+        stopComposing();
     };
+
+    // Start wake word listener if voice was already enabled from a previous session
+    if (voiceEnabled) startWakeWordListener();
+
 } else {
     micBtn.style.display = 'none';
 }
 
 micBtn.addEventListener('click', () => {
     if (!recognition) return;
-    if (isListening) {
-        recognition.stop();
+    if (isComposing || isListening) {
+        stopComposing();
+        if (wakeWordActive) setTimeout(() => { try { recognition.start(); } catch (e) {} }, 150);
     } else {
-        if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-        recognition.start();
-        isListening = true;
-        micBtn.textContent = '🔴';
-        micBtn.classList.add('listening');
+        startComposing();
+        try { recognition.start(); } catch (e) {}
     }
 });
 
