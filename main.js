@@ -271,7 +271,8 @@ function buildSystemPrompt() {
 - Save notes when you learn something new about the user that would be helpful to remember in future conversations
 - Update your context notes as the conversation evolves to maintain accurate, up-to-date information
 - Use todos to help the user track tasks and action items
-- Use web search and URL reading when the user needs current information or references external content`
+- Use web search and URL reading when the user needs current information or references external content
+- IMPORTANT: When managing todos, you can call multiple tools in the same response. For example, to mark a todo complete: first call list_todos to get the ID, then immediately call update_todo with that ID and completed=true. Don't wait for user confirmation between tool calls.`
     });
     
     // Block 3: Context notes (if any)
