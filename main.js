@@ -1212,13 +1212,36 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 let recognition = null;
 let isListening = false;  // manual mic button active
 let wakeWordActive = false; // background wake word polling
-let isComposing = false;  // user said "hey [name]", now dictating
-let composingStartIndex = 0; // result index when composing began
+let isComposing = false;
+let composingStartIndex = 0;
+let lastCheckedFinalIndex = 0;
+
+// Known misrecognition aliases: companion name → extra words the API might hear instead
+const WAKE_ALIASES = {
+    'bloom': ['blue', 'blew', 'blume'],
+    'grove':  ['grow', 'groves'],
+    'seren':  ['siren', 'serene'],
+    'still':  ['steel', 'style'],
+    'prism':  ['prison'],
+    'jest':   ['just', 'chest'],
+    'veil':   ['vale', 'bail', 'fail'],
+};
+
+function matchesWakeWord(transcript, name) {
+    const candidates = [name, ...(WAKE_ALIASES[name] || [])];
+    return candidates.some(n => transcript.includes(`hey ${n}`));
+}
+
+function resetRecognitionIndices() {
+    composingStartIndex = 0;
+    lastCheckedFinalIndex = 0;
+}
 
 function startComposing(resultIndex = 0) {
     isComposing = true;
     isListening = true;
     composingStartIndex = resultIndex;
+    lastCheckedFinalIndex = resultIndex;
     micBtn.textContent = '🔴';
     micBtn.classList.add('listening');
     messageInput.value = '';
@@ -1236,6 +1259,7 @@ function stopComposing() {
 function startWakeWordListener() {
     if (!recognition) return;
     wakeWordActive = true;
+    resetRecognitionIndices();
     try { recognition.start(); } catch (e) {}
 }
 
@@ -1251,9 +1275,9 @@ if (SpeechRecognition) {
     recognition.interimResults = true;
 
     recognition.onresult = (e) => {
-        const wakeName = `hey ${(currentCompanion?.name || '').toLowerCase()}`;
+        const name = (currentCompanion?.name || '').toLowerCase();
 
-        // Build display text from results since composing started
+        // Build display text only from results since composing started
         if (isComposing || isListening) {
             let text = '';
             for (let i = composingStartIndex; i < e.results.length; i++) {
@@ -1262,27 +1286,33 @@ if (SpeechRecognition) {
             messageInput.value = text;
         }
 
-        // Only act on the newest final result
-        const allFinal = Array.from(e.results).filter(r => r.isFinal);
-        if (!allFinal.length) return;
-        const latest = allFinal[allFinal.length - 1][0].transcript.trim().toLowerCase();
+        // Process only NEW final results
+        for (let i = lastCheckedFinalIndex; i < e.results.length; i++) {
+            if (!e.results[i].isFinal) continue;
+            lastCheckedFinalIndex = i + 1;
+            const transcript = e.results[i][0].transcript.trim().toLowerCase();
 
-        if (isComposing || isListening) {
-            if (latest.includes('send message')) {
-                messageInput.value = messageInput.value.replace(/send\s+message/gi, '').trim();
-                stopComposing();
-                sendMessage();
-            } else if (latest.includes(wakeName)) {
-                messageInput.value = '';
-                stopComposing();
+            if (isComposing || isListening) {
+                if (transcript.includes('send message')) {
+                    messageInput.value = messageInput.value.replace(/send\s+message/gi, '').trim();
+                    stopComposing();
+                    sendMessage();
+                    return;
+                } else if (matchesWakeWord(transcript, name)) {
+                    messageInput.value = '';
+                    stopComposing();
+                    return;
+                }
+            } else if (wakeWordActive && matchesWakeWord(transcript, name)) {
+                startComposing(i + 1);
+                return;
             }
-        } else if (wakeWordActive && latest.includes(wakeName)) {
-            startComposing(e.results.length);
         }
     };
 
     recognition.onend = () => {
         if (wakeWordActive) {
+            resetRecognitionIndices();
             setTimeout(() => { try { recognition.start(); } catch (e) {} }, 150);
         } else {
             stopComposing();
@@ -1292,13 +1322,13 @@ if (SpeechRecognition) {
     recognition.onerror = (e) => {
         if (e.error === 'aborted') return;
         if (wakeWordActive) {
+            resetRecognitionIndices();
             setTimeout(() => { try { recognition.start(); } catch (err) {} }, 500);
         } else {
             stopComposing();
         }
     };
 
-    // Start wake word listener if voice was already enabled from a previous session
     if (voiceEnabled) startWakeWordListener();
 
 } else {
@@ -1309,7 +1339,7 @@ micBtn.addEventListener('click', () => {
     if (!recognition) return;
     if (isComposing || isListening) {
         stopComposing();
-        if (wakeWordActive) setTimeout(() => { try { recognition.start(); } catch (e) {} }, 150);
+        if (wakeWordActive) { resetRecognitionIndices(); setTimeout(() => { try { recognition.start(); } catch (e) {} }, 150); }
     } else {
         startComposing();
         try { recognition.start(); } catch (e) {}
