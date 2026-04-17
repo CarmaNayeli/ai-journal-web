@@ -86,6 +86,8 @@ function stripMarkdown(text) {
         .replace(/^\s*[-*+]\s+/gm, '')
         .replace(/^\s*\d+\.\s+/gm, '')
         .replace(/\n{3,}/g, '\n\n')
+        .replace(/\btodos\b/gi, 'to-dos')
+        .replace(/\btodo\b/gi, 'to-do')
         .trim();
 }
 
