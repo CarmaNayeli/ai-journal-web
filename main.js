@@ -760,7 +760,7 @@ async function sendMessage() {
                             toolResults.push({
                                 type: 'tool_result',
                                 tool_use_id: toolUse.id,
-                                content: `Todo list (${filtered.length} items):\n${todoList}`
+                                content: `Todo list (${filtered.length} items):\n${todoList}\n\nTo update a todo, use the update_todo tool with the ID shown above.`
                             });
                         }
                     } catch (error) {
