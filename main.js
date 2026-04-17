@@ -487,7 +487,7 @@ async function sendMessage() {
                             const cleanText = urlData.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
                             
                             // Check if content is mostly JavaScript (heuristic)
-                            const jsIndicators = ['function(', 'var ', 'const ', 'let ', '=>', 'window.', 'document.'];
+                            const jsIndicators = ['function\\(', 'var ', 'const ', 'let ', '=>', 'window\\.', 'document\\.'];
                             const jsCount = jsIndicators.reduce((count, indicator) => 
                                 count + (cleanText.match(new RegExp(indicator, 'g')) || []).length, 0);
                             const isJsHeavy = jsCount > 20 || cleanText.includes('__NEXT_DATA__') || cleanText.includes('webpack');
