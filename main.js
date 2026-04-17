@@ -326,6 +326,10 @@ async function sendMessage() {
         content: messageContent.length === 1 ? messageContent[0].text || messageContent[0] : messageContent
     });
     
+    // Show typing indicator
+    const typingIndicator = addMessage('...', 'assistant');
+    typingIndicator.classList.add('typing-indicator');
+    
     try {
         // Define tools for the companion
         const tools = [
@@ -382,6 +386,9 @@ async function sendMessage() {
         });
         
         const assistantContent = response.data.content;
+        
+        // Remove typing indicator
+        typingIndicator.remove();
         
         // Check if there are tool uses
         const toolUses = assistantContent.filter(block => block.type === 'tool_use');
@@ -530,6 +537,7 @@ async function sendMessage() {
         
     } catch (error) {
         console.error('Error:', error);
+        typingIndicator.remove();
         addMessage(`Error: ${error.response?.data?.error?.message || error.message}`, 'system');
     }
 }

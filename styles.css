@@ -462,6 +462,29 @@ body {
     opacity: 0.8;
 }
 
+.message.typing-indicator {
+    background: #333;
+    color: #888;
+    align-self: flex-start;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.typing-indicator div {
+    display: inline-block;
+    animation: typing-dots 1.4s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+}
+
+@keyframes typing-dots {
+    0%, 20% { content: '.'; }
+    40% { content: '..'; }
+    60%, 100% { content: '...'; }
+}
+
 .message-attachments {
     margin-top: 8px;
     display: flex;
