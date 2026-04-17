@@ -167,9 +167,9 @@ async function switchToCompanion(companionId, showWelcome = true) {
 
 ✅ **Todo List** - Click ✅ to manage tasks. I can help you add, organize, and track your todos.
 
-📋 **View Context** - Click 📋 to see your session summary.
+📋 **View Context** - Click 📋 to manage your context notes. Notes come in two kinds: **Shared Notes** are visible to all your companions (great for your name, preferences, and ongoing projects), and **Companion Notes** are private to each companion (so our conversations and relationship stay our own). I'll save notes automatically as we talk — you can also edit them directly anytime.
 
-🎭 **Switch Companions** - Click 🎭 anytime to choose a different companion if you need a different kind of support.
+🎭 **Switch Companions** - Click 🎭 anytime to choose a different companion if you need a different kind of support. Each companion remembers things relevant to their own space with you, while still knowing the basics about who you are.
 
 Ready when you are! What would you like to explore today?`;
             
@@ -1528,6 +1528,9 @@ window.browseCompanions = function() {
             </button>
         </div>
         <p class="welcome-subtitle">Choose the companion that resonates with you</p>
+        <p style="color: #999; font-size: 13px; margin: -10px 0 16px; text-align: center;">
+            Each companion keeps their own private notes about your conversations. Basic info like your name and preferences is shared across all of them, so you never have to re-introduce yourself.
+        </p>
         <div id="companionGridWelcome" class="companion-grid"></div>
     `;
     
