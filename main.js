@@ -363,7 +363,7 @@ async function sendMessage() {
             },
             {
                 name: 'read_url',
-                description: 'Fetch and read the content from a URL. Useful for reading documentation, articles, or web pages that the user references. For JavaScript-heavy sites (SPAs, React apps), add js=true parameter.',
+                description: 'Fetch and read the content from a URL. Useful for reading documentation, articles, or web pages that the user references. Try without render_js first (faster). If the content seems incomplete or the site blocks you, try again with render_js=true. Note: Some sites with aggressive bot protection (like Cloudflare) may block all automated access.',
                 input_schema: {
                     type: 'object',
                     properties: {
@@ -373,7 +373,7 @@ async function sendMessage() {
                         },
                         render_js: {
                             type: 'boolean',
-                            description: 'Set to true for JavaScript-heavy sites that need rendering (slower but more complete). Default is false.'
+                            description: 'Set to true for JavaScript-heavy sites or if initial fetch fails. Uses headless browser (slower, ~10 seconds). Default is false.'
                         }
                     },
                     required: ['url']
