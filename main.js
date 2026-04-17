@@ -646,8 +646,8 @@ async function sendMessage() {
                     storage.set('todos', todos);
                     
                     // Refresh todo panel if open
-                    if (window.todoPanel && !window.todoPanel.classList.contains('hidden')) {
-                        window.loadTodos();
+                    if (todoPanel && !todoPanel.classList.contains('hidden')) {
+                        renderTodos();
                     }
                     
                     addMessage(`✅ Added todo: "${text}"`, 'system');
