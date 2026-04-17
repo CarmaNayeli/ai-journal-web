@@ -363,7 +363,7 @@ async function sendMessage() {
             },
             {
                 name: 'read_url',
-                description: 'Fetch and read the content from a URL. Automatically tries simple fetch first, then retries with JS rendering if the content appears to be JavaScript-heavy. Works with static sites, documentation, and JavaScript-heavy sites (SPAs, React, Squarespace, etc.).',
+                description: 'Fetch and read the content from a URL. This tool automatically handles both static and JavaScript-heavy sites - it will try a simple fetch first, and if it detects JavaScript bundles or minimal content, it will automatically retry with JS rendering (using Jina Reader). You only need to call this tool once per URL - the retry happens automatically within the same tool execution. Works with all types of sites including SPAs, React apps, Squarespace, Next.js, etc.',
                 input_schema: {
                     type: 'object',
                     properties: {
