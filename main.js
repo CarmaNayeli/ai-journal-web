@@ -900,19 +900,16 @@ function clearAttachedImages() {
 }
 
 // Welcome panel
-window.handleWelcomeContinue = function() {
+window.handleWelcomeContinue = async function() {
     storage.set('hasSeenWelcome', true);
     welcomePanel.classList.add('hidden');
     
     // Check if user has a saved companion
     const savedCompanionId = storage.get('currentCompanion', null);
     if (savedCompanionId && allCompanions.length > 0) {
-        // Load the last used companion
-        const companion = allCompanions.find(c => c.id === savedCompanionId);
-        if (companion) {
-            selectCompanion(companion);
-            return;
-        }
+        // Load the last used companion with greeting
+        await switchToCompanion(savedCompanionId, true);
+        return;
     }
     
     // No saved companion - show companion selection
