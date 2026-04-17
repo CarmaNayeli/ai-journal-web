@@ -77,9 +77,10 @@ let attachedImages = [];
 async function loadCompanions() {
     try {
         const companionFiles = [
-            'anchor', 'athena', 'bloom', 'bolt', 'chrysalis', 'compass',
-            'echo', 'keeper', 'luna', 'muse', 'phoenix', 'prism',
-            'river', 'rowan', 'sylvan', 'spark', 'sunny', 'tide',
+            'anchor', 'athena', 'bloom', 'bolt', 'chrysalis', 'clover',
+            'compass', 'echo', 'grove', 'jest', 'keeper', 'luna',
+            'muse', 'phoenix', 'prism', 'river', 'rowan', 'seren',
+            'spark', 'still', 'sunny', 'sylvan', 'tide', 'veil',
             'vesper', 'willow'
         ];
         
