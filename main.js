@@ -686,46 +686,56 @@ async function sendMessage() {
                     }
                     
                 } else if (toolUse.name === 'update_todo') {
-                    const { id, text, description, link, completed } = toolUse.input;
-                    console.log('update_todo called with:', { id, text, description, link, completed });
-                    todos = storage.get('todos', []);
-                    console.log('Current todos:', todos);
-                    const todo = todos.find(t => t.id === id);
-                    console.log('Found todo:', todo);
-                    
-                    if (todo) {
-                        if (text !== undefined) todo.text = text;
-                        if (description !== undefined) todo.description = description;
-                        if (link !== undefined) todo.link = link;
-                        if (completed !== undefined) {
-                            console.log('Setting completed to:', completed);
-                            todo.completed = completed;
+                    try {
+                        const { id, text, description, link, completed } = toolUse.input;
+                        console.log('update_todo called with:', { id, text, description, link, completed });
+                        todos = storage.get('todos', []);
+                        console.log('Current todos:', todos);
+                        const todo = todos.find(t => t.id === id);
+                        console.log('Found todo:', todo);
+                        
+                        if (todo) {
+                            if (text !== undefined) todo.text = text;
+                            if (description !== undefined) todo.description = description;
+                            if (link !== undefined) todo.link = link;
+                            if (completed !== undefined) {
+                                console.log('Setting completed to:', completed);
+                                todo.completed = completed;
+                            }
+                            
+                            console.log('Updated todo:', todo);
+                            storage.set('todos', todos);
+                            console.log('Saved to storage');
+                            
+                            // Refresh todo panel if open
+                            const panelHidden = todoPanel.classList.contains('hidden');
+                            console.log('Todo panel hidden?', panelHidden);
+                            if (todoPanel && !panelHidden) {
+                                console.log('Calling renderTodos()');
+                                renderTodos();
+                            }
+                            
+                            addMessage(`✏️ Updated todo: "${todo.text}"`, 'system');
+                            toolResults.push({
+                                type: 'tool_result',
+                                tool_use_id: toolUse.id,
+                                content: `Todo updated successfully: "${todo.text}"`
+                            });
+                        } else {
+                            console.error('Todo not found with id:', id);
+                            console.error('Available todo IDs:', todos.map(t => t.id));
+                            toolResults.push({
+                                type: 'tool_result',
+                                tool_use_id: toolUse.id,
+                                content: `Todo with ID ${id} not found. Available IDs: ${todos.map(t => t.id).join(', ')}`
+                            });
                         }
-                        
-                        console.log('Updated todo:', todo);
-                        storage.set('todos', todos);
-                        console.log('Saved to storage');
-                        
-                        // Refresh todo panel if open
-                        const panelHidden = todoPanel.classList.contains('hidden');
-                        console.log('Todo panel hidden?', panelHidden);
-                        if (todoPanel && !panelHidden) {
-                            console.log('Calling renderTodos()');
-                            renderTodos();
-                        }
-                        
-                        addMessage(`✏️ Updated todo: "${todo.text}"`, 'system');
+                    } catch (error) {
+                        console.error('Error in update_todo:', error);
                         toolResults.push({
                             type: 'tool_result',
                             tool_use_id: toolUse.id,
-                            content: `Todo updated successfully: "${todo.text}"`
-                        });
-                    } else {
-                        console.error('Todo not found with id:', id);
-                        toolResults.push({
-                            type: 'tool_result',
-                            tool_use_id: toolUse.id,
-                            content: `Todo with ID ${id} not found`
+                            content: `Error updating todo: ${error.message}`
                         });
                     }
                     
