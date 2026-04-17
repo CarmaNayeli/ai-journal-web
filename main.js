@@ -455,18 +455,22 @@ async function sendMessage() {
             },
             {
                 name: 'list_todos',
-                description: 'Get all todo items from the user\'s todo list. By default only shows active (incomplete) todos. Set include_archived to true to see completed todos as well.',
+                description: 'Get all todo items from the user\'s todo list. By default only shows active (incomplete) todos. Set include_archived to true to see completed todos as well. You can also mark a todo as complete by providing its ID in the mark_complete_id parameter.',
                 input_schema: {
                     type: 'object',
                     properties: {
                         include_archived: {
                             type: 'boolean',
-                            description: 'If true, includes completed/archived todos in the list. Default is false.'
+                            description: 'Whether to include archived/completed todos in the list'
+                        },
+                        mark_complete_id: {
+                            type: 'string',
+                            description: 'Optional: ID of a todo to mark as complete. Use this to mark a todo complete in the same call as listing them.'
                         }
                     },
                     required: []
                 }
-            }
+            },
         ];
         
         // Use proxy endpoint to avoid CORS issues
@@ -749,24 +753,49 @@ async function sendMessage() {
                 } else if (toolUse.name === 'list_todos') {
                     try {
                         const includeArchived = toolUse.input.include_archived || false;
+                        const markCompleteId = toolUse.input.mark_complete_id;
                         todos = storage.get('todos', []);
+                        
+                        // Mark todo as complete if requested
+                        let markedComplete = null;
+                        if (markCompleteId) {
+                            const todo = todos.find(t => t.id === markCompleteId);
+                            if (todo) {
+                                todo.completed = true;
+                                storage.set('todos', todos);
+                                markedComplete = todo.text;
+                                
+                                // Refresh UI if panel is open
+                                if (todoPanel && !todoPanel.classList.contains('hidden')) {
+                                    renderTodos();
+                                }
+                            }
+                        }
+                        
                         const filtered = includeArchived ? todos : todos.filter(t => !t.completed);
                         
                         if (filtered.length === 0) {
+                            const msg = markedComplete 
+                                ? `Marked "${markedComplete}" as complete! ✅\n\nNo active todos remaining. All caught up!`
+                                : (includeArchived ? 'No todos found.' : 'No active todos. All caught up!');
                             toolResults.push({
                                 type: 'tool_result',
                                 tool_use_id: toolUse.id,
-                                content: includeArchived ? 'No todos found.' : 'No active todos. All caught up!'
+                                content: msg
                             });
                         } else {
                             const todoList = filtered.map(t => 
                                 `- [${t.completed ? 'x' : ' '}] ${t.text} (ID: ${t.id})${t.description ? ` - ${t.description}` : ''}${t.link ? ` - ${t.link}` : ''}`
                             ).join('\n');
                             
+                            const msg = markedComplete
+                                ? `Marked "${markedComplete}" as complete! ✅\n\nRemaining todos (${filtered.length} items):\n${todoList}`
+                                : `Todo list (${filtered.length} items):\n${todoList}`;
+                            
                             toolResults.push({
                                 type: 'tool_result',
                                 tool_use_id: toolUse.id,
-                                content: `Todo list (${filtered.length} items):\n${todoList}\n\n⚠️ IMPORTANT: To mark a todo as complete, you MUST call the update_todo tool with the todo's ID and completed=true. Simply listing the todos does not update them. Call update_todo now if you want to change any todo's status.`
+                                content: msg
                             });
                         }
                     } catch (error) {
