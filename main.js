@@ -238,7 +238,11 @@ async function switchToCompanion(companionId, showWelcome = true) {
 
 📋 **View Context** - Click 📋 to manage your context notes. Notes come in two kinds: **Shared Notes** are visible to all your companions (great for your name, preferences, and ongoing projects), and **Companion Notes** are private to each companion (so our conversations and relationship stay our own). I'll save notes automatically as we talk — you can also edit them directly anytime.
 
+🔇 **Voice** - Click 🔇 to enable companion voices (requires a free ElevenLabs API key — add it in ⚙️ Settings). Click 🎤 to speak your messages instead of typing\* .
+
 🎭 **Switch Companions** - Click 🎭 anytime to choose a different companion if you need a different kind of support. Each companion remembers things relevant to their own space with you, while still knowing the basics about who you are.
+
+\*Voice input requires Chrome or Edge — it won't appear on other browsers.
 
 Ready when you are! What would you like to explore today?`;
             
@@ -1171,7 +1175,7 @@ voiceBtn.addEventListener('click', () => {
     storage.set('voiceEnabled', voiceEnabled);
     updateVoiceBtn();
     if (voiceEnabled && !storage.get('elevenLabsApiKey', '')) {
-        addMessage(`🔊 Voice is on! To hear your companions speak, you'll need a free ElevenLabs API key:\n\n1. Go to **elevenlabs.io** and create a free account\n2. In your profile, go to **API Keys** and generate a key\n3. Paste it into ⚙️ **Settings** here\n\nVoice input (🎤) works right now without any key — that uses your browser's built-in speech recognition.`, 'system');
+        addMessage(`🔊 Voice is on! To hear your companions speak, you'll need a free ElevenLabs API key:\n\n1. Go to **elevenlabs.io** and create a free account\n2. In your profile, go to **API Keys** and generate a key\n3. Paste it into ⚙️ **Settings** here\n\nVoice input (🎤) works right now without any key — that uses your browser's built-in speech recognition.\n\n\*Voice input requires Chrome or Edge and won't appear on other browsers.`, 'system');
     } else if (!voiceEnabled && currentAudio) {
         currentAudio.pause();
         currentAudio = null;
