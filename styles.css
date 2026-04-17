@@ -546,6 +546,50 @@ body {
     color: #d4a574;
 }
 
+.attached-images {
+    display: flex;
+    gap: 10px;
+    padding: 10px 0;
+    flex-wrap: wrap;
+}
+
+.attached-image {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid #444;
+}
+
+.attached-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.attached-image .remove-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.attached-image .remove-btn:hover {
+    background: rgba(255, 0, 0, 0.8);
+}
+
 #messageInput {
     flex: 1;
     background: #2a2a2a;

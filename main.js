@@ -50,6 +50,9 @@ const welcomeAcknowledge = document.getElementById('welcomeAcknowledge');
 const welcomeContinue = document.getElementById('welcomeContinue');
 const promptsBtn = document.getElementById('promptsBtn');
 const promptSuggestions = document.getElementById('promptSuggestions');
+const attachBtn = document.getElementById('attachBtn');
+const imageInput = document.getElementById('imageInput');
+const attachedImagesDiv = document.getElementById('attachedImages');
 
 let conversationHistory = [];
 let sessionContext = '';
@@ -58,6 +61,7 @@ let showArchive = false;
 let journalRecording = false;
 let currentCompanion = null;
 let allCompanions = [];
+let attachedImages = [];
 
 // Load companions from JSON files
 async function loadCompanions() {
@@ -274,7 +278,7 @@ function buildSystemPrompt() {
 
 async function sendMessage() {
     const message = messageInput.value.trim();
-    if (!message) return;
+    if (!message && attachedImages.length === 0) return;
     
     const apiKey = storage.get('anthropicApiKey', '');
     if (!apiKey) {
@@ -282,12 +286,44 @@ async function sendMessage() {
         return;
     }
     
-    addMessage(message, 'user');
+    // Build message content with images
+    let messageContent = [];
+    
+    // Add images first
+    if (attachedImages.length > 0) {
+        for (const img of attachedImages) {
+            messageContent.push({
+                type: 'image',
+                source: {
+                    type: 'base64',
+                    media_type: img.mimeType,
+                    data: img.data
+                }
+            });
+        }
+    }
+    
+    // Add text
+    if (message) {
+        messageContent.push({
+            type: 'text',
+            text: message
+        });
+    }
+    
+    // Display user message
+    if (attachedImages.length > 0) {
+        addMessage(`${message}\n[${attachedImages.length} image(s) attached]`, 'user');
+    } else {
+        addMessage(message, 'user');
+    }
+    
     messageInput.value = '';
+    clearAttachedImages();
     
     conversationHistory.push({
         role: 'user',
-        content: message
+        content: messageContent.length === 1 ? messageContent[0].text || messageContent[0] : messageContent
     });
     
     try {
@@ -778,6 +814,57 @@ if (promptsBtn) {
             promptsBtn.classList.toggle('active');
         }
     });
+}
+
+// Image attachment handlers
+attachBtn.addEventListener('click', () => {
+    imageInput.click();
+});
+
+imageInput.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    
+    for (const file of files) {
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const base64Data = event.target.result.split(',')[1];
+                attachedImages.push({
+                    data: base64Data,
+                    mimeType: file.type,
+                    name: file.name
+                });
+                renderAttachedImages();
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    
+    imageInput.value = ''; // Reset input
+});
+
+function renderAttachedImages() {
+    attachedImagesDiv.innerHTML = '';
+    
+    attachedImages.forEach((img, index) => {
+        const imgDiv = document.createElement('div');
+        imgDiv.className = 'attached-image';
+        imgDiv.innerHTML = `
+            <img src="data:${img.mimeType};base64,${img.data}" alt="${img.name}">
+            <button class="remove-btn" onclick="window.removeAttachedImage(${index})">×</button>
+        `;
+        attachedImagesDiv.appendChild(imgDiv);
+    });
+}
+
+window.removeAttachedImage = function(index) {
+    attachedImages.splice(index, 1);
+    renderAttachedImages();
+};
+
+function clearAttachedImages() {
+    attachedImages = [];
+    attachedImagesDiv.innerHTML = '';
 }
 
 // Welcome panel

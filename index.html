@@ -139,9 +139,12 @@
 
         <div class="input-container">
             <button id="promptsBtn" class="prompts-btn hidden" title="Journal Prompts">💭</button>
+            <button id="attachBtn" class="attach-btn" title="Attach Image">📎</button>
+            <input type="file" id="imageInput" accept="image/*" style="display: none;" multiple>
             <textarea id="messageInput" placeholder="Share what's in your heart..." rows="4"></textarea>
             <button id="sendBtn">Send</button>
         </div>
+        <div id="attachedImages" class="attached-images"></div>
     </div>
 
     <script type="module" src="./main.js"></script>
