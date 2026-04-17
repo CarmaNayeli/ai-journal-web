@@ -641,7 +641,7 @@ async function sendMessage() {
                         createdAt: new Date().toISOString()
                     };
                     
-                    const todos = storage.get('todos', []);
+                    todos = storage.get('todos', []);
                     todos.push(todo);
                     storage.set('todos', todos);
                     
@@ -659,7 +659,7 @@ async function sendMessage() {
                     
                 } else if (toolUse.name === 'remove_todo') {
                     const { id } = toolUse.input;
-                    const todos = storage.get('todos', []);
+                    todos = storage.get('todos', []);
                     const index = todos.findIndex(t => t.id === id);
                     
                     if (index !== -1) {
@@ -687,7 +687,7 @@ async function sendMessage() {
                     
                 } else if (toolUse.name === 'update_todo') {
                     const { id, text, description, link, completed } = toolUse.input;
-                    const todos = storage.get('todos', []);
+                    todos = storage.get('todos', []);
                     const todo = todos.find(t => t.id === id);
                     
                     if (todo) {
@@ -719,7 +719,7 @@ async function sendMessage() {
                     
                 } else if (toolUse.name === 'list_todos') {
                     const includeArchived = toolUse.input.include_archived || false;
-                    const todos = storage.get('todos', []);
+                    todos = storage.get('todos', []);
                     const filtered = includeArchived ? todos : todos.filter(t => !t.completed);
                     
                     if (filtered.length === 0) {
