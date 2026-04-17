@@ -718,25 +718,33 @@ async function sendMessage() {
                     }
                     
                 } else if (toolUse.name === 'list_todos') {
-                    const includeArchived = toolUse.input.include_archived || false;
-                    todos = storage.get('todos', []);
-                    const filtered = includeArchived ? todos : todos.filter(t => !t.completed);
-                    
-                    if (filtered.length === 0) {
-                        toolResults.push({
-                            type: 'tool_result',
-                            tool_use_id: toolUse.id,
-                            content: includeArchived ? 'No todos found.' : 'No active todos. All caught up!'
-                        });
-                    } else {
-                        const todoList = filtered.map(t => 
-                            `- [${t.completed ? 'x' : ' '}] ${t.text}${t.description ? ` (${t.description})` : ''}${t.link ? ` - ${t.link}` : ''}`
-                        ).join('\n');
+                    try {
+                        const includeArchived = toolUse.input.include_archived || false;
+                        todos = storage.get('todos', []);
+                        const filtered = includeArchived ? todos : todos.filter(t => !t.completed);
                         
+                        if (filtered.length === 0) {
+                            toolResults.push({
+                                type: 'tool_result',
+                                tool_use_id: toolUse.id,
+                                content: includeArchived ? 'No todos found.' : 'No active todos. All caught up!'
+                            });
+                        } else {
+                            const todoList = filtered.map(t => 
+                                `- [${t.completed ? 'x' : ' '}] ${t.text}${t.description ? ` (${t.description})` : ''}${t.link ? ` - ${t.link}` : ''}`
+                            ).join('\n');
+                            
+                            toolResults.push({
+                                type: 'tool_result',
+                                tool_use_id: toolUse.id,
+                                content: `Todo list (${filtered.length} items):\n${todoList}`
+                            });
+                        }
+                    } catch (error) {
                         toolResults.push({
                             type: 'tool_result',
                             tool_use_id: toolUse.id,
-                            content: `Todo list (${filtered.length} items):\n${todoList}`
+                            content: `Error listing todos: ${error.message}`
                         });
                     }
                     
