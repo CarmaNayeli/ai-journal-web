@@ -743,7 +743,7 @@ async function sendMessage() {
                             });
                         } else {
                             const todoList = filtered.map(t => 
-                                `- [${t.completed ? 'x' : ' '}] ${t.text}${t.description ? ` (${t.description})` : ''}${t.link ? ` - ${t.link}` : ''}`
+                                `- [${t.completed ? 'x' : ' '}] ${t.text} (ID: ${t.id})${t.description ? ` - ${t.description}` : ''}${t.link ? ` - ${t.link}` : ''}`
                             ).join('\n');
                             
                             toolResults.push({
