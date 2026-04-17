@@ -68,18 +68,29 @@ export default async function handler(req) {
       let browser = null;
       try {
         console.log('Launching Puppeteer for URL:', url);
-        const executablePath = await chromium.executablePath();
+        
+        // Set up Chromium flags for serverless
+        const chromiumArgs = [
+          ...chromium.args,
+          '--disable-blink-features=AutomationControlled',
+          '--disable-features=IsolateOrigins,site-per-process',
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--single-process',
+          '--no-zygote'
+        ];
+        
+        const executablePath = await chromium.executablePath('/tmp/chromium');
         console.log('Chromium executable path:', executablePath);
         
         browser = await puppeteer.launch({
-          args: [
-            ...chromium.args,
-            '--disable-blink-features=AutomationControlled',
-            '--disable-features=IsolateOrigins,site-per-process'
-          ],
+          args: chromiumArgs,
           defaultViewport: chromium.defaultViewport,
           executablePath: executablePath,
           headless: chromium.headless,
+          ignoreHTTPSErrors: true,
         });
         
         console.log('Browser launched successfully');
