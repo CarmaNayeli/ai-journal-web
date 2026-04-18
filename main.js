@@ -1164,6 +1164,13 @@ messageInput.addEventListener('paste', async (e) => {
     }
 });
 
+window.toggleShow = function(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const showing = input.type === 'text';
+    input.type = showing ? 'password' : 'text';
+    btn.textContent = showing ? 'Show' : 'Hide';
+};
+
 settingsBtn.addEventListener('click', () => {
     settingsPanel.classList.toggle('hidden');
     if (!settingsPanel.classList.contains('hidden')) {

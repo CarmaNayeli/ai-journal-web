@@ -67,14 +67,20 @@
         <div id="settingsPanel" class="settings-panel hidden">
             <h3>Settings</h3>
             <label>Claude API Key:</label>
-            <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
+            <div style="display:flex;gap:8px;align-items:center;">
+                <input type="password" id="apiKeyInput" placeholder="sk-ant-..." style="flex:1;">
+                <button type="button" onclick="toggleShow('apiKeyInput',this)" style="padding:6px 10px;font-size:12px;background:#2a2a2a;border:1px solid #444;color:#aaa;border-radius:6px;cursor:pointer;white-space:nowrap;">Show</button>
+            </div>
 
             <hr style="margin: 20px 0; border: 1px solid #444;">
 
             <h4>🔊 Voice (Optional)</h4>
             <p style="font-size: 12px; color: #999; margin-bottom: 10px;">Add an ElevenLabs API key to hear your companions speak. Toggle voice on/off with the 🔇 button in the header. Voice IDs are configured per companion in voices.json.</p>
             <label>ElevenLabs API Key:</label>
-            <input type="password" id="elevenLabsKeyInput" placeholder="sk_...">
+            <div style="display:flex;gap:8px;align-items:center;">
+                <input type="password" id="elevenLabsKeyInput" placeholder="sk_..." style="flex:1;">
+                <button type="button" onclick="toggleShow('elevenLabsKeyInput',this)" style="padding:6px 10px;font-size:12px;background:#2a2a2a;border:1px solid #444;color:#aaa;border-radius:6px;cursor:pointer;white-space:nowrap;">Show</button>
+            </div>
 
             <div style="margin-top: 12px; display: flex; gap: 10px;">
                 <button id="saveSettings" style="flex: 1;">Save</button>
